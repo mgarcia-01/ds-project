@@ -1,0 +1,145 @@
+---
+title: "Quiz 1"
+author: "Michael Garcia"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+
+```{r question1}
+#setwd("D:/R/Work/CapStone/training data/final/en_US")
+mb <- (file.info("./final/en_US/en_US.blogs.txt")$size)/1024/1024
+sprintf("The file is %s megabytes", mb)
+
+```
+
+
+
+
+```{r linecounter}
+#a = read.table("./final/en_us/en_US.blogs.txt", header = FALSE,sep = "", dec = ".")
+#head(a)
+blogsfile = "./final/en_us/en_US.blogs.txt"
+newsfile = "./final/en_us/en_US.news.txt"
+twitfile = "./final/en_us/en_US.twitter.txt"
+```
+
+
+```{r question_2}
+#f <- file("./final/en_us/en_US.twitter.txt", open="rb")
+
+lineCounter <- function(file){
+  #f <- file("./final/en_us/en_US.twitter.txt", open="rb")
+  f <- file(file, open="rb")
+  nlines <- 0L
+  while (length(chunk <- readBin(f, "raw", 65536)) > 0){
+      nlines <- nlines + sum(chunk == as.raw(10L))
+      }
+  close(f)
+  sprintf("The file has %s lines.", nlines)
+  
+}
+
+lineCounter(twitfile)
+```
+
+
+```{r question3}
+#while (counter < 3){
+  #a = cat(readLines(textfile), sep = "\n")
+ # print(readLines(textfile))
+#  counter = counter + 1
+#}
+charCounter <- function(file,countbreak){
+  counter = 0
+  charct = 0L
+    for (line in readLines(file)){
+      #print(line)
+      current <-  nchar(line)
+      if (current > charct){
+        charct = current
+      }
+      #charct = nchar(line)
+      #print(nchar(line))
+      counter = counter + 1
+      if (counter == countbreak & countbreak !=0){
+        break
+      } 
+    }
+  return(charct)
+}
+
+    
+blogs <- charCounter(blogsfile,0)
+news <- charCounter(newsfile,0)
+twit <- charCounter(twitfile,0)
+
+```
+
+
+```{r question4}
+
+wordDiv <- function(filename,word1,word2){
+  f <- file(filename, open="rb")
+  filelines <- readLines(f)
+  div <- length(grep("love", filelines))/length(grep("hate", filelines))
+  #print(div)
+  close(f)
+  sprintf("We get %s",div)
+}
+
+wordDiv(twitfile,"love", "hate")
+
+```
+
+
+```{r question5}
+
+wordSearch <- function(filename,word){
+  f <- file(filename, open="rb")
+  filelines <- readLines(f)
+  res <- grep(word, filelines, value = T)
+  close(f)
+  print(res)
+}
+
+wordSearch(twitfile,"biostats")
+
+```
+
+
+
+```{r question6}
+
+statementCount <- function(filename,statement){
+  f <- file(filename, open="rb")
+  filelines <- readLines(f)
+  lns <- grep(statement, filelines)
+  close(f)
+  sprintf("Frequency of statement %s", length(lns))
+  #print(lns)
+}
+
+statementCount(twitfile, "A computer once beat me at chess, but it was no match for me at kickboxing")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
