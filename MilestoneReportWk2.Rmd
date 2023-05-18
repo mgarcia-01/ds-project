@@ -21,10 +21,15 @@ The goal of this project is just to display that you've gotten used to working w
 3.  Has the data scientist made basic plots, such as histograms to illustrate features of the data?
 4.  Was the report written in a brief, concise style, in a way that a non-data scientist manager could appreciate?
 
+```{r libimports,include=TRUE, echo=FALSE}
+library(dplyr)
+library(tidytext)
+library(ggplot2)
+```
 
 ```{r classobject}
 textdata <- setRefClass("textdata",
-                        fields = list(filepath="character", linecount="ANY", charcount="ANY", wordratio="ANY", wordsearchres="ANY", statementcount="ANY"), 
+                        fields = list(filepath="character", linecount="ANY", charcount="ANY", wordratio="ANY", wordsearchres="ANY", statementcount="ANY", dfwrangle="ANY", wordplot="ANY"), 
                         methods = list(
                           initialize = function(filepath) {
                             .self$filepath <- filepath
@@ -33,6 +38,8 @@ textdata <- setRefClass("textdata",
                             .self$wordratio <- .self$wordDiv()
                             .self$wordsearchres <- .self$wordSearch()
                             .self$statementcount <- .self$statementCount()
+                            .self$dfwrangle  <- .self$datawrangle()
+                            .self$wordplot <- .self$wordPlot()
                           },
                           
                           lineCounter = function(.self){
@@ -110,8 +117,59 @@ textdata <- setRefClass("textdata",
                               return(lns)
                             }
                           }
+                          ,
+                          datawrangle = function(.self){
+                            strfile <- readLines(.self$filepath)
+                            df_eng_news <- tibble(line = 1:length(strfile), text = strfile)
+                            #df_eng_blogs <- tibble(line = 1:length(str_eng_blogs), text = str_eng_blogs)
+                            #df_eng_twitter <- tibble(line = 1:length(str_eng_twitter), text = str_eng_twitter)
+                            
+                            # unnest tokens
+                            df_eng_news_unnest <- df_eng_news %>% 
+                                   unnest_tokens(word, text) %>% # makes lowercase
+                                   mutate(source = toString(.self$filepath))
+                            
+                            #df_eng_blogs_unnest <- df_eng_blogs %>% 
+                             #      unnest_tokens(word, text) %>% 
+                              #     mutate(source = "blogs")
+                            
+                            #df_eng_twitter_unnest <- df_eng_twitter %>% 
+                             #      unnest_tokens(word, text) %>% 
+                              #     mutate(source = "twitter")
+                            
+                            # remove numbers since we're looking at words
+                            df_eng_news_unnest <- df_eng_news_unnest %>% filter(!grepl("[0-9]", word))
+                            df_eng <- df_eng_news_unnest
+                            #df_eng_blogs_unnest <- df_eng_blogs_unnest %>% filter(!grepl("[0-9]", word))
+                            #df_eng_twitter_unnest <- df_eng_twitter_unnest %>% filter(!grepl("[0-9]", word))
+                            
+                            # combine into one
+                            #df_eng <- rbind(df_eng_news_unnest, df_eng_blogs_unnest, df_eng_twitter_unnest)
+                            
+                            # remove stop words
+                            df_eng <- df_eng %>% anti_join(stop_words, by = "word")
+                            #.self$dfwrangle = df_eng
+                            return(df_eng)
+                          }
+                          ,
+                          wordPlot = function(.self){
+                            df_eng <- .self$dfwrangle
+                            df_eng_wordcount <- df_eng %>% count(word, sort = TRUE)     
+                            df_eng_wordcount %>% head(n = 20) %>% mutate(word = reorder(word, n)) %>% 
+                                   
+                                   ggplot(aes(x = n, y = word)) +
+                                   geom_col(fill = "#00abff") +
+                                   theme_bw() +
+                                   ggtitle("Most frequently used words in the English language")
+                          }
+                          
+                          
                         )
                         )
+
+combineTibbles <- function(tib1,tib2,tib3){
+    df_eng <- rbind(df_eng_news_unnest, df_eng_blogs_unnest, df_eng_twitter_unnest)
+}
 
 
 ```
@@ -124,8 +182,9 @@ newsfile = "./final/en_us/en_US.news.txt"
 twitfile = "./final/en_us/en_US.twitter.txt"
 
 
-bres <- textdata(blogsfile)
-
+blogsinfo <- textdata(blogsfile)
+newsinfo <- textdata(newsfile)
+twitinfo <- textdata(twitfile)
 ```
 
 
@@ -133,13 +192,9 @@ bres <- textdata(blogsfile)
 ```{r resultsprint}
 #bres$charCounter(countbreak=0)
 #bres$wordDiv("love","hate")
-bres$wordratio
-
-
+blogsinfo$wordplot
+newsinfo$wordplot
 ```
-
-
-
 
 
 
