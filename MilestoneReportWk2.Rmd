@@ -23,29 +23,35 @@ The goal of this project is just to display that you've gotten used to working w
 
 
 ```{r classobject}
-models <- setRefClass("models",
-                       fields = list(filepath="ANY", lineCounter="ANY"), 
-                       methods = list(
-                         initialize = function(filepath, lineCounter) {
-                           .self$filepath <- filepath
-                           .self$lineCounter <- lineCounter
-                           
-                           },
-                         
-                         lineCounter = function(.self){
+textdata <- setRefClass("textdata",
+                        fields = list(filepath="character", linecount="ANY", charcount="ANY", wordratio="ANY", wordsearchres="ANY", statementcount="ANY"), 
+                        methods = list(
+                          initialize = function(filepath) {
+                            .self$filepath <- filepath
+                            .self$linecount <- .self$lineCounter()
+                            .self$charcount <- .self$charCounter()
+                            .self$wordratio <- .self$wordDiv()
+                            .self$wordsearchres <- .self$wordSearch()
+                            .self$statementcount <- .self$statementCount()
+                          },
+                          
+                          lineCounter = function(.self){
                             f <- file(.self$filepath, open="rb")
                             nlines <- 0L
                             while (length(chunk <- readBin(f, "raw", 65536)) > 0){
-                                nlines <- nlines + sum(chunk == as.raw(10L))
-                                }
+                              nlines <- nlines + sum(chunk == as.raw(10L))
+                            }
                             close(f)
                             sprintf("The file has %s lines.", nlines)
                             return(nlines)
-                         }
-                         ,
-                         charCounter <- function(.self,countbreak){
-                            counter = 0
-                            charct = 0L
+                          }
+                          ,
+                          charCounter = function(.self,countbreak=NULL){
+                            if (is.null(countbreak)==TRUE){
+                              return(NULL)
+                            } else {
+                              counter = 0
+                              charct = 0L
                               for (line in readLines(.self$filepath)){
                                 #print(line)
                                 current <-  nchar(line)
@@ -57,47 +63,104 @@ models <- setRefClass("models",
                                   break
                                 } 
                               }
-                            return(charct)
-                         }
-                         ,
-                         wordDiv <- function(.self,word1,word2){
-                            f <- file(.self$filepath, open="rb")
-                            filelines <- readLines(f)
-                            div <- length(grep("love", filelines))/length(grep("hate", filelines))
-                            #print(div)
-                            close(f)
-                            sprintf("We get %s",div)
-                            return(div)
-                         }
-                         ,
-                         wordSearch <- function(.self,word){
-                            f <- file(.self$filepath, open="rb")
-                            filelines <- readLines(f)
-                            res <- grep(word, filelines, value = T)
-                            close(f)
-                            print(res)
-                            return(res)
-                         }
-                         ,
-                         statementCount <- function(.self,statement){
-                            f <- file(.self$filepath, open="rb")
-                            filelines <- readLines(f)
-                            lns <- grep(statement, filelines)
-                            close(f)
-                            sprintf("Frequency of statement %s", length(lns))
-                            return(lns)
-                            #print(lns)
+                              .self$charcount = charct
+                              return(charct)
+                            }
                           }
-                         )
-                      )
+                          ,
+                          wordDiv = function(.self,word1=NULL,word2=NULL){
+                            if (is.null(word1)==TRUE || is.null(word2)==TRUE){
+                              return(NULL)
+                            } else {
+                              f <- file(.self$filepath, open="rb")
+                              filelines <- readLines(f)
+                              div <- length(grep(word1, filelines))/length(grep(word2, filelines))
+                              #print(div)
+                              close(f)
+                              sprintf("We get %s",div)
+                              .self$wordratio = div
+                              return(div)
+                            }
+                          }
+                          ,
+                          wordSearch = function(.self,word=NULL){
+                            if (is.null(word)==TRUE){
+                              return(NULL)
+                            } else {
+                              f <- file(.self$filepath, open="rb")
+                              filelines <- readLines(f)
+                              res <- grep(word, filelines, value = T)
+                              close(f)
+                              print(res)
+                              .self$wordsearchres = res
+                              return(res)
+                            }
+                          }
+                          ,
+                          statementCount = function(.self,statement=NULL){
+                            if (is.null(statement)==TRUE){
+                              return(NULL)
+                            } else{
+                              f <- file(.self$filepath, open="rb")
+                              filelines <- readLines(f)
+                              lns <- grep(statement, filelines)
+                              close(f)
+                              sprintf("Frequency of statement %s", length(lns))
+                              .self$statementcount = lns
+                              return(lns)
+                            }
+                          }
+                        )
+                        )
 
 
 ```
 
 
-```{r download}
+### Read data
+```{r readfiles}
 blogsfile = "./final/en_us/en_US.blogs.txt"
 newsfile = "./final/en_us/en_US.news.txt"
 twitfile = "./final/en_us/en_US.twitter.txt"
 
+
+bres <- textdata(blogsfile)
+
 ```
+
+
+### View Results
+```{r resultsprint}
+#bres$charCounter(countbreak=0)
+#bres$wordDiv("love","hate")
+bres$wordratio
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

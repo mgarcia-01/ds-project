@@ -89,7 +89,7 @@ twit <- charCounter(twitfile,0)
 wordDiv <- function(filename,word1,word2){
   f <- file(filename, open="rb")
   filelines <- readLines(f)
-  div <- length(grep("love", filelines))/length(grep("hate", filelines))
+  div <- length(grep(word1, filelines))/length(grep(word2, filelines))
   #print(div)
   close(f)
   sprintf("We get %s",div)
