@@ -162,13 +162,11 @@ textdata <- setRefClass("textdata",
                                    theme_bw() +
                                    ggtitle("Most frequently used words in the English language")
                           }
-                          
-                          
                         )
                         )
 
 combineTibbles <- function(tib1,tib2,tib3){
-    df_eng <- rbind(df_eng_news_unnest, df_eng_blogs_unnest, df_eng_twitter_unnest)
+    df_eng <- rbind(tib1, tib2, tib3)
 }
 
 
@@ -188,12 +186,28 @@ twitinfo <- textdata(twitfile)
 ```
 
 
+```{r merge}
+
+dfbind <- combineTibbles(blogsinfo$dfwrangle, newsinfo$dfwrangle, twitinfo$dfwrangle)
+
+```
+
+
+
 ### View Results
 ```{r resultsprint}
 #bres$charCounter(countbreak=0)
 #bres$wordDiv("love","hate")
-blogsinfo$wordplot
-newsinfo$wordplot
+#blogsinfo$wordplot
+#newsinfo$wordplot
+
+
+## Copy an instantiazed class
+updatetext <- newsinfo
+updatetext$dfwrangle <- dfbind
+updatetext$wordPlot()
+
+
 ```
 
 
