@@ -21,6 +21,10 @@ The goal of this project is just to display that you've gotten used to working w
 3.  Has the data scientist made basic plots, such as histograms to illustrate features of the data?
 4.  Was the report written in a brief, concise style, in a way that a non-data scientist manager could appreciate?
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
 ```{r libimports,include=TRUE, echo=FALSE}
 library(dplyr)
 library(tidytext)
@@ -34,7 +38,7 @@ textdata <- setRefClass("textdata",
                           initialize = function(filepath) {
                             .self$filepath <- filepath
                             .self$linecount <- .self$lineCounter()
-                            .self$charcount <- .self$charCounter()
+                            .self$charcount <- .self$charCounter(countbreak = 0)
                             .self$wordratio <- .self$wordDiv()
                             .self$wordsearchres <- .self$wordSearch()
                             .self$statementcount <- .self$statementCount()
@@ -120,42 +124,24 @@ textdata <- setRefClass("textdata",
                           ,
                           datawrangle = function(.self){
                             strfile <- readLines(.self$filepath)
-                            df_eng_news <- tibble(line = 1:length(strfile), text = strfile)
-                            #df_eng_blogs <- tibble(line = 1:length(str_eng_blogs), text = str_eng_blogs)
-                            #df_eng_twitter <- tibble(line = 1:length(str_eng_twitter), text = str_eng_twitter)
-                            
-                            # unnest tokens
-                            df_eng_news_unnest <- df_eng_news %>% 
-                                   unnest_tokens(word, text) %>% # makes lowercase
+                            df_source <- tibble(line = 1:length(strfile), text = strfile)
+                           
+                            df_source_unnest <- df_source %>% 
+                                   unnest_tokens(word, text) %>% 
                                    mutate(source = toString(.self$filepath))
                             
-                            #df_eng_blogs_unnest <- df_eng_blogs %>% 
-                             #      unnest_tokens(word, text) %>% 
-                              #     mutate(source = "blogs")
+                            #Clean out numbers
+                            df_source_unnest <- df_source_unnest %>% filter(!grepl("[0-9]", word))
+                            df <- df_source_unnest
                             
-                            #df_eng_twitter_unnest <- df_eng_twitter %>% 
-                             #      unnest_tokens(word, text) %>% 
-                              #     mutate(source = "twitter")
-                            
-                            # remove numbers since we're looking at words
-                            df_eng_news_unnest <- df_eng_news_unnest %>% filter(!grepl("[0-9]", word))
-                            df_eng <- df_eng_news_unnest
-                            #df_eng_blogs_unnest <- df_eng_blogs_unnest %>% filter(!grepl("[0-9]", word))
-                            #df_eng_twitter_unnest <- df_eng_twitter_unnest %>% filter(!grepl("[0-9]", word))
-                            
-                            # combine into one
-                            #df_eng <- rbind(df_eng_news_unnest, df_eng_blogs_unnest, df_eng_twitter_unnest)
-                            
-                            # remove stop words
-                            df_eng <- df_eng %>% anti_join(stop_words, by = "word")
-                            #.self$dfwrangle = df_eng
-                            return(df_eng)
+                            df <- df %>% anti_join(stop_words, by = "word")
+                            return(df)
                           }
                           ,
                           wordPlot = function(.self){
-                            df_eng <- .self$dfwrangle
-                            df_eng_wordcount <- df_eng %>% count(word, sort = TRUE)     
-                            df_eng_wordcount %>% head(n = 20) %>% mutate(word = reorder(word, n)) %>% 
+                            df <- .self$dfwrangle
+                            df_wordcount <- df %>% count(word, sort = TRUE)     
+                            df_wordcount %>% head(n = 20) %>% mutate(word = reorder(word, n)) %>% 
                                    
                                    ggplot(aes(x = n, y = word)) +
                                    geom_col(fill = "#00abff") +
@@ -166,14 +152,16 @@ textdata <- setRefClass("textdata",
                         )
 
 combineTibbles <- function(tib1,tib2,tib3){
-    df_eng <- rbind(tib1, tib2, tib3)
+    df <- rbind(tib1, tib2, tib3)
 }
 
 
 ```
 
+### Read data and instantiate objects containing results
 
-### Read data
+Prior to initiating the file read, mkdir named "final" and download and extract into the final directory. 
+
 ```{r readfiles}
 blogsfile = "./final/en_us/en_US.blogs.txt"
 newsfile = "./final/en_us/en_US.news.txt"
@@ -185,51 +173,90 @@ newsinfo <- textdata(newsfile)
 twitinfo <- textdata(twitfile)
 ```
 
+## Summary for blogs file
 
-```{r merge}
+-   The total word count is: `blogsinfo$charcount`
+-   The total number of lines is: `blogsinfo$linecount`
 
-dfbind <- combineTibbles(blogsinfo$dfwrangle, newsinfo$dfwrangle, twitinfo$dfwrangle)
+```{r blogssummary}
+print("Word Count: ")
+print(blogsinfo$charcount)
+
+print("Line Count: ")
+print(blogsinfo$linecount)
+```
+
+### Blogs Plot
+
+```{r blogsplot}
+blogsinfo$wordplot
+```
+## Summary for newsinfo
+
+-   The total word count is: `newsinfo$charcount`
+-   The total number of lines is: `newsinfo$linecount`
+
+```{r newssummary}
+print("Word Count: ")
+print(newsinfo$charcount)
+
+print("Line Count: ")
+print(newsinfo$linecount)
+```
+
+### News Word Plot
+
+```{r newsplot}
+newsinfo$wordplot
+```
+
+## Summary for twitter
+
+-   The total word count is: `twitinfo$charcount`
+-   The total number of lines is: `twitinfo$linecount`
+
+```{r twitter_ssummary}
+print("Word Count: ")
+print(twitinfo$charcount)
+
+print("Line Count: ")
+print(twitinfo$linecount)
+
 
 ```
 
+### twitter plot
 
+```{r twplot}
+twitinfo$wordplot
+```
 
-### View Results
-```{r resultsprint}
-#bres$charCounter(countbreak=0)
-#bres$wordDiv("love","hate")
-#blogsinfo$wordplot
-#newsinfo$wordplot
+### Twitter Word Frequency
 
+## Summary for All Source Combined
 
+-   The total word count is: `updatetext$charcount`
+-   The total number of lines is: `updatetext$linecount`
+
+```{r allsource_summary}
+
+# merge the dataframes
+dfbind <- combineTibbles(blogsinfo$dfwrangle, newsinfo$dfwrangle, twitinfo$dfwrangle)
 ## Copy an instantiazed class
 updatetext <- newsinfo
 updatetext$dfwrangle <- dfbind
-updatetext$wordPlot()
 
+
+print("Word Count: ")
+print(updatetext$charcount)
+
+print("Line Count: ")
+print(updatetext$linecount)
 
 ```
 
+### All Source Word Frequency
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+```{r allplot}
+updatetext$wordPlot()
+```
