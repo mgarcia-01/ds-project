@@ -84,6 +84,9 @@ twit <- charCounter(twitfile,0)
 ```
 
 
+
+
+
 ```{r question4}
 
 wordDiv <- function(filename,word1,word2){

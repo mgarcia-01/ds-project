@@ -1,0 +1,541 @@
+---
+title: "Task4 Prediction Model"
+author: "Michael Garcia"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls(all.names = TRUE))
+```
+
+# Task 4 - Prediction Model
+
+The goal of this exercise is to build and evaluate your first predictive model. You will use the n-gram and backoff models you built in previous tasks to build and evaluate your predictive model. The goal is to make the model efficient and accurate.
+
+Tasks to accomplish
+
+1.  Build a predictive model based on the previous data modeling steps - you may combine the models in any way you think is appropriate.
+
+2.  Evaluate the model for efficiency and accuracy - use timing software to evaluate the computational complexity of your model. Evaluate the model accuracy using different metrics like perplexity, accuracy at the first word, second word, and third word.
+
+Questions to consider
+
+1.  How does the model perform for different choices of the parameters and size of the model?
+
+2.  How much does the model slow down for the performance you gain?
+
+3.  Does perplexity correlate with the other measures of accuracy?
+
+4.  Can you reduce the size of the model (number of parameters) without reducing performance?
+
+```{r loadlibs}
+library(stringi)
+#library(devtools)
+library(kableExtra)
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(tidytext)
+library(ggplot2)
+```
+
+
+
+```{r classcreate}
+textdata <- setRefClass("textdata",
+                        fields = list(filepath="character", linecount="ANY", charcount="ANY", wordratio="ANY", wordsearchres="ANY", statementcount="ANY", dfwrangle="ANY", wordplot="ANY"), 
+                        methods = list(
+                          initialize = function(filepath) {
+                            .self$filepath <- filepath
+                            .self$linecount <- .self$lineCounter()
+                            .self$charcount <- .self$charCounter(countbreak = 0)
+                            .self$wordratio <- .self$wordDiv()
+                            .self$wordsearchres <- .self$wordSearch()
+                            .self$statementcount <- .self$statementCount()
+                            .self$dfwrangle  <- .self$datawrangle()
+                            .self$wordplot <- .self$wordPlot()
+                          },
+                          
+                          lineCounter = function(.self){
+                            f <- file(.self$filepath, open="rb")
+                            nlines <- 0L
+                            while (length(chunk <- readBin(f, "raw", 65536)) > 0){
+                              nlines <- nlines + sum(chunk == as.raw(10L))
+                            }
+                            close(f)
+                            sprintf("The file has %s lines.", nlines)
+                            return(nlines)
+                          }
+                          ,
+                          charCounter = function(.self,countbreak=NULL){
+                            if (is.null(countbreak)==TRUE){
+                              return(NULL)
+                            } else {
+                              counter = 0
+                              charct = 0L
+                              for (line in readLines(.self$filepath)){
+                                #print(line)
+                                current <-  nchar(line)
+                                if (current > charct){
+                                  charct = current
+                                }
+                                counter = counter + 1
+                                if (counter == countbreak & countbreak !=0){
+                                  break
+                                } 
+                              }
+                              .self$charcount = charct
+                              return(charct)
+                            }
+                          }
+                          ,
+                          wordDiv = function(.self,word1=NULL,word2=NULL){
+                            if (is.null(word1)==TRUE || is.null(word2)==TRUE){
+                              return(NULL)
+                            } else {
+                              f <- file(.self$filepath, open="rb")
+                              filelines <- readLines(f)
+                              div <- length(grep(word1, filelines))/length(grep(word2, filelines))
+                              #print(div)
+                              close(f)
+                              sprintf("We get %s",div)
+                              .self$wordratio = div
+                              return(div)
+                            }
+                          }
+                          ,
+                          wordSearch = function(.self,word=NULL){
+                            if (is.null(word)==TRUE){
+                              return(NULL)
+                            } else {
+                              f <- file(.self$filepath, open="rb")
+                              filelines <- readLines(f)
+                              res <- grep(word, filelines, value = T)
+                              close(f)
+                              print(res)
+                              .self$wordsearchres = res
+                              return(res)
+                            }
+                          }
+                          ,
+                          statementCount = function(.self,statement=NULL){
+                            if (is.null(statement)==TRUE){
+                              return(NULL)
+                            } else{
+                              f <- file(.self$filepath, open="rb")
+                              filelines <- readLines(f)
+                              lns <- grep(statement, filelines)
+                              close(f)
+                              sprintf("Frequency of statement %s", length(lns))
+                              .self$statementcount = lns
+                              return(lns)
+                            }
+                          }
+                          ,
+                          datawrangle = function(.self){
+                            strfile <- readLines(.self$filepath)
+                            df_source <- tibble(line = 1:length(strfile), text = strfile)
+                           
+                            df_source_unnest <- df_source %>% 
+                                   unnest_tokens(word, text) %>% 
+                                   mutate(source = toString(.self$filepath))
+                            
+                            #Clean out numbers
+                            df_source_unnest <- df_source_unnest %>% filter(!grepl("[0-9]", word))
+                            df <- df_source_unnest
+                            
+                            df <- df %>% anti_join(stop_words, by = "word")
+                            return(df)
+                          }
+                          ,
+                          wordPlot = function(.self){
+                            df <- .self$dfwrangle
+                            df_wordcount <- df %>% count(word, sort = TRUE)     
+                            df_wordcount %>% head(n = 20) %>% mutate(word = reorder(word, n)) %>% 
+                                   
+                                   ggplot(aes(x = n, y = word)) +
+                                   geom_col(fill = "#00abff") +
+                                   theme_bw() +
+                                   ggtitle("Most frequently used words in the English language")
+                          }
+                        )
+                        )
+
+combineTibbles <- function(tib1,tib2,tib3){
+    df <- rbind(tib1, tib2, tib3)
+}
+```
+
+
+## Load Data
+
+```{r data_load}
+
+trainURL <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+trainDataFile <- "data/Coursera-SwiftKey.zip"
+
+
+
+zipdownloader <- function(data_url,zip_file){
+    if (!file.exists('data')) {
+      dir.create('data')
+      }
+  
+    if (!file.exists("data/final/en_US")) {
+        tempFile <- tempfile()
+        download.file(data_url, tempFile)
+        unzip(tempFile, exdir = "data")
+        unlink(tempFile)
+        }
+}
+
+txtdownloader <- function(data_url,text_file){
+    if (!file.exists('data')) {
+      dir.create('data')
+      }
+  
+    if (!file.exists(text_file)) {
+        #tempFile <- tempfile()
+        download.file(data_url, text_file)
+        #unzip(tempFile, exdir = "data")
+        #unlink(tempFile)
+        }
+}
+
+
+zipdownloader(trainURL,trainDataFile)
+
+blogsfile = "./data/final/en_us/en_US.blogs.txt"
+newsfile = "./data/final/en_us/en_US.news.txt"
+twitfile = "./data/final/en_us/en_US.twitter.txt"
+```
+
+```{r read_data}
+#blogsinfo <- textdata(blogsfile)
+#newsinfo <- textdata(newsfile)
+#twitinfo <- textdata(twitfile)
+
+# blogs
+blogsFileName <- "data/final/en_US/en_US.blogs.txt"
+con <- file(blogsFileName, open = "r")
+blogs <- readLines(con, encoding = "UTF-8", skipNul = TRUE)
+close(con)
+
+# news
+newsFileName <- "data/final/en_US/en_US.news.txt"
+con <- file(newsFileName, open = "r")
+news <- readLines(con, encoding = "UTF-8", skipNul = TRUE)
+close(con)
+
+# twitter
+twitterFileName <- "data/final/en_US/en_US.twitter.txt"
+con <- file(twitterFileName, open = "r")
+twitter <- readLines(con, encoding = "UTF-8", skipNul = TRUE)
+close(con)
+
+rm(con)
+```
+
+
+## Summary Example
+```{r summaryexample, results='asis'}
+library(stringi)
+library(kableExtra)
+
+# assign sample size
+sampleSize = 0.01
+
+# file size
+fileSizeMB <- round(file.info(c(blogsFileName,
+                                newsFileName,
+                                twitterFileName))$size / 1024 ^ 2)
+
+# num lines per file
+numLines <- sapply(list(blogs, news, twitter), length)
+
+# num characters per file
+numChars <- sapply(list(nchar(blogs), nchar(news), nchar(twitter)), sum)
+
+# num words per file
+numWords <- sapply(list(blogs, news, twitter), stri_stats_latex)[4,]
+
+# words per line
+wpl <- lapply(list(blogs, news, twitter), function(x) stri_count_words(x))
+
+# words per line summary
+wplSummary = sapply(list(blogs, news, twitter),
+             function(x) summary(stri_count_words(x))[c('Min.', 'Mean', 'Max.')])
+rownames(wplSummary) = c('WPL.Min', 'WPL.Mean', 'WPL.Max')
+
+summary <- data.frame(
+    File = c("en_US.blogs.txt", "en_US.news.txt", "en_US.twitter.txt"),
+    FileSize = paste(fileSizeMB, " MB"),
+    Lines = numLines,
+    Characters = numChars,
+    Words = numWords,
+    t(rbind(round(wplSummary)))
+)
+
+kable(summary,
+      format = "html", booktabs=T,
+      row.names = FALSE,
+      align = c("l", rep("r", 7)),
+      caption = "")  %>% kable_styling(position = "left")
+
+summary
+```
+
+
+
+
+## Sample Data
+
+```{r sample_data}
+# set seed for reproducability
+set.seed(660067)
+
+# sample all three data sets
+sampleBlogs <- sample(blogs, length(blogs) * sampleSize, replace = FALSE)
+sampleNews <- sample(news, length(news) * sampleSize, replace = FALSE)
+sampleTwitter <- sample(twitter, length(twitter) * sampleSize, replace = FALSE)
+
+# remove all non-English characters from the sampled data
+sampleBlogs <- iconv(sampleBlogs, "latin1", "ASCII", sub = "")
+sampleNews <- iconv(sampleNews, "latin1", "ASCII", sub = "")
+sampleTwitter <- iconv(sampleTwitter, "latin1", "ASCII", sub = "")
+
+# combine all three data sets into a single data set and write to disk
+sampleData <- c(sampleBlogs, sampleNews, sampleTwitter)
+sampleDataFileName <- "data/final/en_US/en_US.sample.txt"
+con <- file(sampleDataFileName, open = "w")
+writeLines(sampleData, con)
+close(con)
+
+# get number of lines and words from the sample data set
+sampleDataLines <- length(sampleData);
+sampleDataWords <- sum(stri_count_words(sampleData))
+
+# remove variables no longer needed to free up memory
+rm(blogs, news, twitter, sampleBlogs, sampleNews, sampleTwitter)
+
+```
+
+
+## Build Corpus
+
+
+
+```{r corpus}
+library(tm)
+
+# download bad words file
+##badWordsURL <- "http://www.idevelopment.info/data/DataScience/uploads/full-list-of-bad-words_text-file_2018_07_30.zip"
+badWordsURL <- "https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/badwordslist/badwords.txt"
+badWordsFile <- "data/badwords.txt"
+#badWordsFile <- "data/full-list-of-bad-words_text-file_2018_07_30.txt"
+
+txtdownloader(badWordsURL, badWordsFile)
+
+#if (!file.exists('data')) {
+#    dir.create('data')
+#}
+#if (!file.exists(badWordsFile)) {
+#    tempFile <- tempfile()
+#    download.file(badWordsURL, tempFile)
+#    unzip(tempFile, exdir = "data")
+#    unlink(tempFile)
+#}
+
+buildCorpus <- function (dataSet) {
+    docs <- VCorpus(VectorSource(dataSet))
+    toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+    
+    # remove URL, Twitter handles and email patterns
+    docs <- tm_map(docs, toSpace, "(f|ht)tp(s?)://(.*)[.][a-z]+")
+    docs <- tm_map(docs, toSpace, "@[^\\s]+")
+    docs <- tm_map(docs, toSpace, "\\b[A-Z a-z 0-9._ - ]*[@](.*?)[.]{1,3} \\b")
+    
+    # remove profane words from the sample data set
+    #con <- file(badWordsFile, open = "r")
+    #profanity <- readLines(con, encoding = "UTF-8", skipNul = TRUE, warn=FALSE)
+    #close(con)
+    #profanity <- iconv(profanity, "latin1", "ASCII", sub = "")
+    #docs <- tm_map(docs, removeWords, profanity)
+    
+    docs <- tm_map(docs, tolower)
+    docs <- tm_map(docs, removeWords, stopwords("english"))
+    docs <- tm_map(docs, removePunctuation)
+    docs <- tm_map(docs, removeNumbers)
+    docs <- tm_map(docs, stripWhitespace)
+    docs <- tm_map(docs, PlainTextDocument)
+    return(docs)
+}
+
+# build the corpus and write to disk (RDS)
+corpus <- buildCorpus(sampleData)
+saveRDS(corpus, file = "data/final/en_US/en_US.corpus.rds")
+
+# convert corpus to a dataframe and write lines/words to disk (text)
+corpusText <- data.frame(text = unlist(sapply(corpus, '[', "content")), stringsAsFactors = FALSE)
+con <- file("data/final/en_US/en_US.corpus.txt", open = "w")
+writeLines(corpusText$text, con)
+close(con)
+
+kable(head(corpusText$text, 10),
+      row.names = FALSE,
+      col.names = NULL,
+      align = c("l"),
+      caption = "First 10 Documents") %>% kable_styling(position = "left")
+
+# remove variables no longer needed to free up memory
+rm(sampleData)
+
+```
+
+
+### Word Freq
+
+```{r wordfreq}
+library(wordcloud)
+library(RColorBrewer)
+
+tdm <- TermDocumentMatrix(corpus)
+freq <- sort(rowSums(as.matrix(tdm)), decreasing = TRUE)
+wordFreq <- data.frame(word = names(freq), freq = freq)
+
+# plot the top 10 most frequent words
+g <- ggplot (wordFreq[1:10,], aes(x = reorder(wordFreq[1:10,]$word, -wordFreq[1:10,]$fre),
+                                  y = wordFreq[1:10,]$fre ))
+g <- g + geom_bar( stat = "Identity" , fill = I("grey50"))
+g <- g + geom_text(aes(label = wordFreq[1:10,]$fre), vjust = -0.20, size = 3)
+g <- g + xlab("")
+g <- g + ylab("Word Frequencies")
+g <- g + theme(plot.title = element_text(size = 14, hjust = 0.5, vjust = 0.5),
+               axis.text.x = element_text(hjust = 0.5, vjust = 0.5, angle = 45),
+               axis.text.y = element_text(hjust = 0.5, vjust = 0.5))
+g <- g + ggtitle("10 Most Frequent Words")
+print(g)
+
+# construct word cloud
+suppressWarnings (
+    wordcloud(words = wordFreq$word,
+              freq = wordFreq$freq,
+              min.freq = 1,
+              max.words = 100,
+              random.order = FALSE,
+              rot.per = 0.35, 
+              colors=brewer.pal(8, "Dark2"))
+)
+
+# remove variables no longer needed to free up memory
+rm(tdm, freq, wordFreq, g)
+```
+
+
+### Tokenize
+
+```{r rweka}
+library(RWeka)
+
+unigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
+bigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+trigramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+
+```
+
+
+### Unigrams
+```{r unigram}
+# create term document matrix for the corpus
+unigramMatrix <- TermDocumentMatrix(corpus, control = list(tokenize = unigramTokenizer))
+
+# eliminate sparse terms for each n-gram and get frequencies of most common n-grams
+unigramMatrixFreq <- sort(rowSums(as.matrix(removeSparseTerms(unigramMatrix, 0.99))), decreasing = TRUE)
+unigramMatrixFreq <- data.frame(word = names(unigramMatrixFreq), freq = unigramMatrixFreq)
+
+# generate plot
+g <- ggplot(unigramMatrixFreq[1:20,], aes(x = reorder(word, -freq), y = freq))
+g <- g + geom_bar(stat = "identity", fill = I("grey50"))
+g <- g + geom_text(aes(label = freq ), vjust = -0.20, size = 3)
+g <- g + xlab("")
+g <- g + ylab("Frequency")
+g <- g + theme(plot.title = element_text(size = 14, hjust = 0.5, vjust = 0.5),
+               axis.text.x = element_text(hjust = 1.0, angle = 45),
+               axis.text.y = element_text(hjust = 0.5, vjust = 0.5))
+g <- g + ggtitle("20 Most Common Unigrams")
+print(g)
+```
+
+
+
+
+
+### Bigrams
+```{r bigrams}
+# create term document matrix for the corpus
+bigramMatrix <- TermDocumentMatrix(corpus, control = list(tokenize = bigramTokenizer))
+
+# eliminate sparse terms for each n-gram and get frequencies of most common n-grams
+bigramMatrixFreq <- sort(rowSums(as.matrix(removeSparseTerms(bigramMatrix, 0.999))), decreasing = TRUE)
+bigramMatrixFreq <- data.frame(word = names(bigramMatrixFreq), freq = bigramMatrixFreq)
+
+# generate plot
+g <- ggplot(bigramMatrixFreq[1:20,], aes(x = reorder(word, -freq), y = freq))
+g <- g + geom_bar(stat = "identity", fill = I("grey50"))
+g <- g + geom_text(aes(label = freq ), vjust = -0.20, size = 3)
+g <- g + xlab("")
+g <- g + ylab("Frequency")
+g <- g + theme(plot.title = element_text(size = 14, hjust = 0.5, vjust = 0.5),
+               axis.text.x = element_text(hjust = 1.0, angle = 45),
+               axis.text.y = element_text(hjust = 0.5, vjust = 0.5))
+g <- g + ggtitle("20 Most Common Bigrams")
+print(g)
+
+```
+
+
+### Trigrams
+
+```{r trigrams}
+# create term document matrix for the corpus
+trigramMatrix <- TermDocumentMatrix(corpus, control = list(tokenize = trigramTokenizer))
+
+# eliminate sparse terms for each n-gram and get frequencies of most common n-grams
+trigramMatrixFreq <- sort(rowSums(as.matrix(removeSparseTerms(trigramMatrix, 0.9999))), decreasing = TRUE)
+trigramMatrixFreq <- data.frame(word = names(trigramMatrixFreq), freq = trigramMatrixFreq)
+
+# generate plot
+g <- ggplot(trigramMatrixFreq[1:20,], aes(x = reorder(word, -freq), y = freq))
+g <- g + geom_bar(stat = "identity", fill = I("grey50"))
+g <- g + geom_text(aes(label = freq ), vjust = -0.20, size = 3)
+g <- g + xlab("")
+g <- g + ylab("Frequency")
+g <- g + theme(plot.title = element_text(size = 14, hjust = 0.5, vjust = 0.5),
+               axis.text.x = element_text(hjust = 1.0, angle = 45),
+               axis.text.y = element_text(hjust = 0.5, vjust = 0.5))
+g <- g + ggtitle("20 Most Common Trigrams")
+print(g)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
