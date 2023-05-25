@@ -170,9 +170,9 @@ rm(tdmr.t)
 # 
 
 #paranoid memory cleanup
-rm(cn)
-rm(corp)
-rm(i)
+#rm(cn)
+#rm(corp)
+#rm(i)
 
 # memory size of our initial corpus
 print(object.size(corp), units="Mb")
@@ -218,6 +218,7 @@ length(unique(c(
 
 # prepare these in advance, since shiny app load-time should be smallest possible
 ngram_stats <- data.frame(ngram = '', length = 0, count_min = 0, count_median = 0, count_mean = 0, count_max = 0, most_frequent_ngram='', mem = '')
+
 for(i in 1:6) {
   # on-the-fly ngram statistics
   s <- summary( eval(parse(text = paste0('ngram',i,'$count'))) )
@@ -229,15 +230,38 @@ for(i in 1:6) {
                        data.frame(
                          ngram = paste0('ngram',i), 
                          length = nrow(eval(parse(text = paste0('ngram',i)))), 
-                         count_min = s[1], 
-                         count_median = s[3], 
-                         count_mean = round(s[4],1),
-                         count_max = s[6],
+                         #count_min = s[1], 
+                         #count_median = s[3], 
+                         #count_mean = round(s[4],1),
+                         #count_max = s[6],
                          most_frequent_ngram = most_frequent_ngram,
                          mem = m
                        )
   )
 }
+
+sfunction <- function(iter){
+  s <- summary( eval(parse(text = paste0('ngram',i,'$count'))) )
+  # extract the most frequent word
+  w <- eval(parse(text = paste0('ngram',i,'[1,seq(',i,')+1, with=F]')))
+  most_frequent_ngram <- paste(unlist(w), sep=" ", collapse = " ")
+  m <- paste(round(object.size(eval(parse(text = paste0('ngram',i))))/1024^2,1),'Mb')
+  xdf <- data.frame(
+    ngram = paste0('ngram',i), 
+    length = nrow(eval(parse(text = paste0('ngram',i)))), 
+    count_min = s[1], 
+    count_median = s[3], 
+    count_mean = round(s[4],1),
+    count_max = s[6],
+    most_frequent_ngram = most_frequent_ngram,
+    mem = m
+  )
+  #ngram_stats <- rbind(ngram_stats, xdf)
+}
+
+
+
+
 rm(s); rm(w);rm(m);rm(most_frequent_ngram);rm(i);
 ngram_stats <- ngram_stats[-1,]
 
