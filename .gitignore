@@ -54,3 +54,7 @@ final
 *.pdf
 data
 *.log
+
+#system files
+.DS_Store
+.ds_store
