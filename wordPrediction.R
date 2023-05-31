@@ -20,7 +20,23 @@ if( ! file.exists("Coursera-SwiftKey.zip") ){
   unzip("Coursera-SwiftKey.zip")
 }
 
-
+zipdownloader <- function(source_url,zip_file, list = NULL){
+    if (!file.exists(zip_file)) {
+      dir.create('data')
+      }
+    if (!file.exists(zip_file)) {
+        tempFile <- tempfile()
+        download.file(source_url, tempFile)
+        #unzip(tempFile, exdir = "data")
+        if (is.null(list)==TRUE){
+          unzip(tempFile)
+          } else if (is.null(list)==FALSE) {
+             unzip(tempFile,list)
+             return(tempFile)
+          }
+        unlink(tempFile)
+        }
+        }
 
 # look at the source files
 zip_files <- unzip("Coursera-SwiftKey.zip", list = T)
@@ -248,14 +264,14 @@ sfunction <- function(iter){
   most_frequent_ngram <- paste(unlist(w), sep=" ", collapse = " ")
   m <- paste(round(object.size(eval(parse(text = paste0('ngram',i))))/1024^2,1),'Mb')
   xdf <-  data.frame(ngram = paste0('ngram',i),
-          length = nrow(eval(parse(text = paste0('ngram',i)))),
-          count_min = s[[1]],
-          count_median = s[[3]],
-          count_mean = round(s[[4]],1),
-          count_max = s[[6]],
-          most_frequent_ngram = most_frequent_ngram,
-          mem = m
-          )
+                     length = nrow(eval(parse(text = paste0('ngram',i)))),
+                     count_min = s[[1]],
+                     count_median = s[[3]],
+                     count_mean = round(s[[4]],1),
+                     count_max = s[[6]],
+                     most_frequent_ngram = most_frequent_ngram,
+                     mem = m
+  )
   ngram_stats <- rbind(ngram_stats, xdf)
   return(ngram_stats)
 }

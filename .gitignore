@@ -42,3 +42,5 @@ data
 #system files
 .DS_Store
 .ds_store
+*.Rdata
+settings.json
