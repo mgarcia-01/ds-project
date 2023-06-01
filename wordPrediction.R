@@ -13,51 +13,68 @@ if (!require("slam"))         { install.packages("slam") }
 if (!require("data.table"))   { install.packages("data.table") }
 
 
-# download file, if not present already
-if( ! file.exists("Coursera-SwiftKey.zip") ){
-  src_zip_file <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
-  download.file(src_zip_file, destfile = "Coursera-SwiftKey.zip")
-  unzip("Coursera-SwiftKey.zip")
-}
 
 zipdownloader <- function(source_url,zip_file, list = NULL){
-    if (!file.exists(zip_file)) {
-      dir.create('data')
-      }
-    if (!file.exists(zip_file)) {
+    #if (!file.exists(zip_file)) {
+     # dir.create('data')
+      #}
+    if (file.exists(zip_file)) {
         tempFile <- tempfile()
         download.file(source_url, tempFile)
         #unzip(tempFile, exdir = "data")
         if (is.null(list)==TRUE){
           unzip(tempFile)
           } else if (is.null(list)==FALSE) {
-             unzip(tempFile,list)
-             return(tempFile)
+             zx <- unzip(tempFile,list=T)
+             return(zx)
           }
         unlink(tempFile)
         }
         }
 
-# look at the source files
-zip_files <- unzip("Coursera-SwiftKey.zip", list = T)
-zip_files$Date <- NULL
-zip_files$Language <- substr(zip_files$Name, 7, 8)
-zip_files$Length_in_Mb <- zip_files$Length/(1024^2)
-zip_files <- zip_files[zip_files$Length>0,]
-ggplot(zip_files, aes(x = Name, y = Length_in_Mb, fill = Language)) + 
-  geom_bar(stat="identity") + 
-  coord_flip() +
-  theme_light() + 
-  xlab("") + ylab("File size in Mb")
+zx <- zipdownloader("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip","Coursera-SwiftKey.zip",list=T)
 
+ziphandler <- function(x){
+  # look at the source files
+  #zip_files <- unzip("Coursera-SwiftKey.zip", list = T)
+  zip_files <- x
+  zip_files$Date <- NULL
+  zip_files$Language <- substr(zip_files$Name, 7, 8)
+  zip_files$Length_in_Mb <- zip_files$Length/(1024^2)
+  zip_files <- zip_files[zip_files$Length>0,]
+  ggplot(zip_files, aes(x = Name, y = Length_in_Mb, fill = Language)) + 
+    geom_bar(stat="identity") + 
+    coord_flip() +
+    theme_light() + 
+    xlab("") + ylab("File size in Mb")
+  
+  
+  # only load twitter
+  zip_files <- zip_files[ grep("en_US", zip_files$Name),  ]
+  return(zip_files)
+  
+}
 
-# only load twitter
-zip_files <- zip_files[ grep("en_US", zip_files$Name),  ]
+zip_test <- ziphandler(zx)
 
-# this section reads all the files in memory 
-# using dynamical variable names
-# only run this part if you have enough RAM
-for (file in zip_files$Name) {
+filedatareader <- function(file_df){
+  # this section reads all the files in memory 
+  # using dynamical variable names
+  # only run this part if you have enough RAM
+  for (file in file_df$Name) {
+    con <- file(file, "r")
+    file_content <- readLines(con, encoding = "UTF-8")
+    print(  paste("File:", file, "has in-memory size of:") )
+    print(object.size(file_content), units="Mb")
+    close(con)
+    
+    # dynamically create variable names
+    assign(basename(file), file_content)
+    file_content <- NULL
+  }
+}
+
+for (file in zip_test$Name) {
   con <- file(file, "r")
   file_content <- readLines(con, encoding = "UTF-8")
   print(  paste("File:", file, "has in-memory size of:") )
@@ -68,6 +85,8 @@ for (file in zip_files$Name) {
   assign(basename(file), file_content)
   file_content <- NULL
 }
+#file_content <- filedatareader(zip_test)
+
 
 
 
