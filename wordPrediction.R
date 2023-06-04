@@ -78,37 +78,19 @@ filedatareader(zip_test)
 
 
 filelist <- c("en_US.blogs.txt", "en_US.twitter.txt", "en_US.news.txt")
-filelist3 <- eval(parse(text=filelist))
-filelist2 <- c(en_US.blogs.txt, en_US.twitter.txt, en_US.news.txt)
-ds <- c()
-for (i in filelist) {
-  var = eval(parse(text=i))
-  ds <- c(var)
-}
-
 
 
 gen_stats <- function(txtlist, multiplier) {
   #   899,288 docs blogs
   # 2,360,148 docs (largest collection in terms of documents) tweets
   #    77,259 docs news
+  ds <<- c()
   for (i in txtlist){
     var = eval(parse(text = i))
     set.seed(1984); assign(paste0("ds.",i), sample(var,   0.2 * length(var)), envir = .GlobalEnv)
-    #set.seed( 1984 ); ds.blogs  <- sample(en_US.blogs.txt,   0.2 * length(en_US.blogs.txt) ) # around 90k entries
-    #set.seed( 1984 ); ds.tweets <- sample(en_US.twitter.txt, 0.2 * length(en_US.twitter.txt))
-    #set.seed( 1984 ); ds.news   <- sample(en_US.news.txt,    0.2 * length(en_US.news.txt))
+    
+    ds <<- c(ds,var)
   }
-  # blending texts together
-  ds <<- eval(parse(text=filelist))
-  
-  #set.seed(1984); assign(paste0("ds.","en_US.blogs.txt"), sample(en_US.blogs.txt,   0.2 * length(en_US.blogs.txt)), envir = .GlobalEnv)
-  #set.seed( 1984 ); ds.blogs  <- sample(en_US.blogs.txt,   0.2 * length(en_US.blogs.txt) ) # around 90k entries
-  #set.seed( 1984 ); ds.tweets <- sample(en_US.twitter.txt, 0.2 * length(en_US.twitter.txt))
-  #set.seed( 1984 ); ds.news   <- sample(en_US.news.txt,    0.2 * length(en_US.news.txt))
-  
-  # blending texts together
-  #ds <- c(ds.blogs, ds.tweets, ds.news)
   
   hist(stri_count_words(ds), breaks=30, col=rainbow(50), main = paste("Number of words distribution for", prettyNum(length(ds), scientific=FALSE, big.mark=","), "documents" ))
   
@@ -121,60 +103,19 @@ gen_stats <- function(txtlist, multiplier) {
   # summary number of characters
   summary( sapply(ds, nchar) )
   
-  
   # calculate how much memory each object requires, and list the largest 10
   tail( sort( sapply(ls(), function(x) object.size(get(x)) ) ) , 10)
-  #rm(en_US.blogs.txt)
-  #rm(en_US.news.txt)
-  #rm(en_US.twitter.txt)
-  #rm(ds.blogs)
-  #rm(ds.news)
-  #rm(ds.tweets)
   gc()
+  #return(hist(stri_count_words(ds), breaks=30, col=rainbow(50), main = paste("Number of words distribution for", prettyNum(length(ds), scientific=FALSE, big.mark=","), "documents" )))
 }
 
 gen_stats(filelist, 0.2)
 
 
 
-#   899,288 docs blogs
-# 2,360,148 docs (largest collection in terms of documents) tweets
-#    77,259 docs news
-set.seed(1984); assign(paste0("ds.","en_US.blogs.txt"), sample(en_US.blogs.txt,   0.2 * length(en_US.blogs.txt)))
-
-set.seed( 1984 ); ds.blogs  <- sample(en_US.blogs.txt,   0.2 * length(en_US.blogs.txt) ) # around 90k entries
-set.seed( 1984 ); ds.tweets <- sample(en_US.twitter.txt, 0.2 * length(en_US.twitter.txt))
-set.seed( 1984 ); ds.news   <- sample(en_US.news.txt,    0.2 * length(en_US.news.txt))
-
-# blending texts together
-ds <- c(ds.blogs, ds.tweets, ds.news)
-
-hist( stri_count_words(ds), breaks=30, col=rainbow(50), main = paste("Number of words distribution for", prettyNum(length(ds), scientific=FALSE, big.mark=","), "documents" ))
-
-# 246564
-length(ds)
-
-# word summaries
-summary(stri_count_words(ds))
-
-# summary number of characters
-summary( sapply(ds, nchar) )
 
 
-# calculate how much memory each object requires, and list the largest 10
-tail( sort( sapply(ls(), function(x) object.size(get(x)) ) ) , 10)
-rm(en_US.blogs.txt)
-rm(en_US.news.txt)
-rm(en_US.twitter.txt)
-rm(ds.blogs)
-rm(ds.news)
-rm(ds.tweets)
-gc()
-
-
-
-
-
+##TODO: Continue here
 
 
 # text mining on sampled data
@@ -209,7 +150,7 @@ corp <- tm_map(corp, PlainTextDocument)
 
 
 
-######################################
+## Modified
 # load bigrams, trigrams until 6-grams from the dataset, create word columns and regroup
 for(i in 1:6) {
   print(paste0("Extracting", " ", i, "-grams from corpus"))
