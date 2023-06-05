@@ -47,9 +47,7 @@ ziphandler <- function(x){
     coord_flip() +
     theme_light() + 
     xlab("") + ylab("File size in Mb")
-  
-  
-  # only load twitter
+  # only load US files
   zip_files <- zip_files[ grep("en_US", zip_files$Name),  ]
   return(zip_files)
   
@@ -79,6 +77,14 @@ filedatareader(zip_test)
 
 filelist <- c("en_US.blogs.txt", "en_US.twitter.txt", "en_US.news.txt")
 
+cleanObjects <- function(objlist) {
+  for (i in objlist) {
+    objs <- ls(pos = ".GlobalEnv")
+    rm(list = objs[grep(i, objs)], pos = ".GlobalEnv")
+  }
+}
+
+
 
 gen_stats <- function(txtlist, multiplier) {
   #   899,288 docs blogs
@@ -88,7 +94,6 @@ gen_stats <- function(txtlist, multiplier) {
   for (i in txtlist){
     var = eval(parse(text = i))
     set.seed(1984); assign(paste0("ds.",i), sample(var,   0.2 * length(var)), envir = .GlobalEnv)
-    
     ds <<- c(ds,var)
   }
   
@@ -101,10 +106,14 @@ gen_stats <- function(txtlist, multiplier) {
   summary(stri_count_words(ds))
   
   # summary number of characters
-  summary( sapply(ds, nchar) )
+  summary(sapply(ds, nchar) )
   
   # calculate how much memory each object requires, and list the largest 10
-  tail( sort( sapply(ls(), function(x) object.size(get(x)) ) ) , 10)
+  tail(sort(sapply(ls(), function(x) object.size(get(x)))), 10)
+  print(paste0("list of obj",ls()))
+  
+  cleanObjects(txtlist)
+
   gc()
   #return(hist(stri_count_words(ds), breaks=30, col=rainbow(50), main = paste("Number of words distribution for", prettyNum(length(ds), scientific=FALSE, big.mark=","), "documents" )))
 }
@@ -133,10 +142,10 @@ corp <- tm_map(corp, stripWhitespace)
 corp <- tm_map(corp, tolower)
 
 # Remove punctuation
-corp = tm_map(corp, removePunctuation)
+corp <- tm_map(corp, removePunctuation)
 
 # Remove numbers
-corp = tm_map(corp, removeNumbers)
+corp <- tm_map(corp, removeNumbers)
 
 # remove stopwords
 #length( stopwords("en") )
@@ -148,6 +157,43 @@ corp <- tm_map(corp, PlainTextDocument)
 # inspect outcome
 #inspect( corp[1:2] ) 
 
+
+
+genCorpus <- function(txtlist) {
+  # text mining on sampled data
+  corp <- VCorpus(VectorSource(txtlist))
+
+  # start the tm_map transformations 
+
+  # switch encoding: convert character vector from UTF-8 to ASCII
+  corp <- tm_map(corp, function(x)  iconv(x, 'UTF-8', 'ASCII'))
+
+  # eliminate white spaces
+  corp <- tm_map(corp, stripWhitespace)
+
+  # convert to lowercase
+  corp <- tm_map(corp, tolower)
+
+  # Remove punctuation
+  corp <- tm_map(corp, removePunctuation)
+
+  # Remove numbers
+  corp <- tm_map(corp, removeNumbers)
+
+  # remove stopwords
+  #length( stopwords("en") )
+  #corp <- tm_map(corp, removeWords, stopwords("en"))
+
+  # assign TEXT flag
+  corp <- tm_map(corp, PlainTextDocument)
+
+  # inspect outcome
+  #inspect( corp[1:2] ) # nolint: commented_code_linter.
+  return(corp)
+}
+
+
+corp <- genCorpus(ds)
 
 
 ## Modified
@@ -180,12 +226,15 @@ for(i in 1:6) {
   print( table(tdmr.t$count) )
   
   # dynamically create variable names
-  assign(paste0("ngram",i), tdmr.t)
+  assign(paste0("ngram",i), tdmr.t, envir = .GlobalEnv)
 }
 rm(ds)
 rm(tdmr)
 rm(tdm)
 rm(tdmr.t)
+
+
+
 
 
 # # regrouping by count
