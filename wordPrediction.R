@@ -165,44 +165,6 @@ genCorpus <- function(txtlist) {
 
 corp <- genCorpus(ds)
 
-
-## Modified
-for(i in 1:6) {
-  print(paste0("Extracting", " ", i, "-grams from corpus"))
-  tokens <- function(x) unlist(lapply(ngrams(words(x), i), paste, collapse = " "), use.names = FALSE)
-  tdm <- TermDocumentMatrix(corp, control = list(tokenize = tokens))
-  
-  #  tdmr <- rollup(tdm, 2, na.rm = TRUE, FUN = sum)
-  #  tdmr.t <- data.table(token = tdmr$dimnames$Terms, count = tdm$v) 
-  # post-processing, creating dynamically word columns to simplify querying
-  #  tdmr.t[,  paste0("w", seq(i)) := tstrsplit(token, " ", fixed=TRUE)]
-  # remove source token to save memory
-  #  tdmr.t$token <- NULL
-  
-  
-  
-  tdmr <- sort(slam::row_sums(tdm, na.rm = T), decreasing=TRUE)
-  tdmr.t <- data.table(token = names(tdmr), count = unname(tdmr)) 
-  tdmr.t[,  paste0("w", seq(i)) := tstrsplit(token, " ", fixed=TRUE)]
-  # remove source token to save memory
-  tdmr.t$token <- NULL
-  
-  
-  print(paste0("Loaded in memory ", nrow(tdmr.t), " ", i, "-grams, taking: "))
-  print(object.size(tdmr.t), units='Mb')
-  
-  #frequency distribution
-  print( table(tdmr.t$count) )
-  
-  # dynamically create variable names
-  assign(paste0("ngram",i), tdmr.t)
-}
-rm(ds)
-rm(tdmr)
-rm(tdm)
-rm(tdmr.t)
-
-
 ngramGenerator <- function(corpus_object) {
   ## Modified
   corp <- corpus_object
@@ -277,31 +239,34 @@ print(object.size(x=sapply(ls(), get)), units="Mb")
 # ngram5[,token:=paste(w1, w2, w3, w4, w5)]
 # ngram6[,token:=paste(w1, w2, w3, w4, w5, w6)]
 
-# calculate relative frequency
-ngram1[,freq:=count/sum(count)]
-ngram2[,freq:=count/sum(count)]
-ngram3[,freq:=count/sum(count)]
-ngram4[,freq:=count/sum(count)]
-ngram5[,freq:=count/sum(count)]
-ngram6[,freq:=count/sum(count)]
 
-# skip sparse entities, but leave the real frequency
-ngram1 <- subset(ngram1, count>1)
-ngram2 <- subset(ngram2, count>1)
-ngram3 <- subset(ngram3, count>1)
-ngram4 <- subset(ngram4, count>1)
-ngram5 <- subset(ngram5, count>1)
-ngram6 <- subset(ngram6, count>1)
+relative_freq <- function() {
+  # calculate relative frequency
+  ngram1[,freq:=count/sum(count)]
+  ngram2[,freq:=count/sum(count)]
+  ngram3[,freq:=count/sum(count)]
+  ngram4[,freq:=count/sum(count)]
+  ngram5[,freq:=count/sum(count)]
+  ngram6[,freq:=count/sum(count)]
+
+  # skip sparse entities, but leave the real frequency
+  ngram1 <- subset(ngram1, count>1)
+  ngram2 <- subset(ngram2, count>1)
+  ngram3 <- subset(ngram3, count>1)
+  ngram4 <- subset(ngram4, count>1)
+  ngram5 <- subset(ngram5, count>1)
+  ngram6 <- subset(ngram6, count>1)
 
 
-# how many unique words loaded (we took just splits of the full datasets)
-length(unique(c(
-  unlist(ngram2[,2:3, with = FALSE]), 
-  unlist(ngram3[,2:4, with = FALSE]), 
-  unlist(ngram4[,2:5, with = FALSE]), 
-  unlist(ngram5[,2:6, with = FALSE]), 
-  unlist(ngram6[,2:7, with = FALSE])
-))) 
+  # how many unique words loaded (we took just splits of the full datasets)
+  length(unique(c(
+    unlist(ngram2[,2:3, with = FALSE]), 
+    unlist(ngram3[,2:4, with = FALSE]), 
+    unlist(ngram4[,2:5, with = FALSE]), 
+    unlist(ngram5[,2:6, with = FALSE]), 
+    unlist(ngram6[,2:7, with = FALSE])
+  ))) 
+}
 
 # prepare these in advance, since shiny app load-time should be smallest possible
 ngram_stats <- data.frame(ngram = '', length = 0, count_min = 0, count_median = 0, count_mean = 0, count_max = 0, most_frequent_ngram='', mem = '')
@@ -327,7 +292,7 @@ stat_generator <- function(startrange, endrange, stats_df){
   return(stats_df)
 }
 
-ngram_stats <- stat_generator()(1,6,ngram_stats)
+ngram_stats <- stat_generator(1,6,ngram_stats)
 
 
 rm(s); rm(w);rm(m);rm(most_frequent_ngram);rm(i);
@@ -341,7 +306,7 @@ save.image("20th_corpus_freq.Rdata")
 # predict function
 # simple back-off algorithm working its way from large 6-grams to tri/bi/unigrams
 #
-pred_words <- function(sentence, n = 10){
+pred_words <- function(sentence, n = 5){
   
   # follow a similar preparation path as the large corpus
   sentence <- removeNumbers(sentence)
@@ -394,7 +359,6 @@ pred_words <- function(sentence, n = 10){
   }
   
 }
-
 
 
 pred_words('i want to go')
