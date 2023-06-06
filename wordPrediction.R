@@ -18,21 +18,27 @@ zipdownloader <- function(source_url,zip_file, list = NULL){
     #if (!file.exists(zip_file)) {
      # dir.create('data')
       #}
-    if (file.exists(zip_file)) {
-        tempFile <- tempfile()
-        download.file(source_url, tempFile)
-        #unzip(tempFile, exdir = "data")
-        if (is.null(list)==TRUE){
-          unzip(tempFile)
-          } else if (is.null(list)==FALSE) {
-             zx <- unzip(tempFile,list=T)
-             return(zx)
-          }
-        unlink(tempFile)
-        }
-        }
+    tempFile <- tempfile()
 
-zx <- zipdownloader("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip","Coursera-SwiftKey.zip",list=T)
+    if (!file.exists(zip_file)) {
+      print("The file doesnt exist...")
+      download.file(source_url, tempFile)
+    } else if (file.exists(zip_file)) {
+      print("the file DOES exist...")
+      tempFile <- zip_file
+    }
+    #unzip(tempFile, exdir = "data")
+    if (is.null(list)==TRUE){
+##TODO: Remove the redundat handler since list argument is used regardless)
+      unzip(tempFile, list=T)
+      } else if (is.null(list)==FALSE) {
+          zx <- unzip(tempFile,list=T)
+          return(zx)
+      }
+    unlink(tempFile)
+    }
+
+zx <- zipdownloader("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip","Coursera-SwiftKey.zip", list = T)
 
 ziphandler <- function(x){
   # look at the source files
@@ -50,7 +56,6 @@ ziphandler <- function(x){
   # only load US files
   zip_files <- zip_files[ grep("en_US", zip_files$Name),  ]
   return(zip_files)
-  
 }
 
 zip_test <- ziphandler(zx)
@@ -84,10 +89,9 @@ cleanObjects <- function(objlist) {
   }
 }
 
-
-
 # inspect outcome
 #inspect( corp[1:2] ) 
+
 gen_stats <- function(txtlist, multiplier) {
   #   899,288 docs blogs
   # 2,360,148 docs (largest collection in terms of documents) tweets
@@ -96,7 +100,8 @@ gen_stats <- function(txtlist, multiplier) {
   for (i in txtlist){
     var = eval(parse(text = i))
     set.seed(1984); assign(paste0("ds.",i), sample(var,   0.2 * length(var)), envir = .GlobalEnv)
-    ds <<- c(ds,var)
+    # The appended data cannot be var but the new generated variable 
+    ds <<- c(ds,assign(paste0("ds.",i), sample(var,   0.2 * length(var)), envir = .GlobalEnv))
   }
   
   hist(stri_count_words(ds), breaks=30, col=rainbow(50), main = paste("Number of words distribution for", prettyNum(length(ds), scientific=FALSE, big.mark=","), "documents" ))
@@ -125,36 +130,36 @@ gen_stats(filelist, 0.2)
 
 genCorpus <- function(txtlist) {
   # text mining on sampled data
-  corp <- VCorpus(VectorSource(txtlist))
+  cp <- VCorpus(VectorSource(txtlist))
 
   # start the tm_map transformations 
 
   # switch encoding: convert character vector from UTF-8 to ASCII
-  corp <- tm_map(corp, function(x)  iconv(x, 'UTF-8', 'ASCII'))
+  cp <- tm_map(cp, function(x)  iconv(x, 'UTF-8', 'ASCII'))
 
   # eliminate white spaces
-  corp <- tm_map(corp, stripWhitespace)
+  cp <- tm_map(cp, stripWhitespace)
 
   # convert to lowercase
-  corp <- tm_map(corp, tolower)
+  cp <- tm_map(cp, tolower)
 
   # Remove punctuation
-  corp = tm_map(corp, removePunctuation)
+  cp = tm_map(cp, removePunctuation)
 
   # Remove numbers
-  corp = tm_map(corp, removeNumbers)
+  cp = tm_map(cp, removeNumbers)
 
   # remove stopwords
   #length( stopwords("en") )
-  #corp <- tm_map(corp, removeWords, stopwords("en"))
+  #cp <- tm_map(cp, removeWords, stopwords("en"))
 
   # assign TEXT flag
-  corp <- tm_map(corp, PlainTextDocument)
+  cp <- tm_map(cp, PlainTextDocument)
   
-  corp
+  return(cp)
   
   # inspect outcome
-  #inspect( corp[1:2] ) # nolint: commented_code_linter.
+  #inspect( cp[1:2] ) # nolint: commented_code_linter.
 }
 
 
@@ -198,6 +203,46 @@ rm(tdm)
 rm(tdmr.t)
 
 
+ngramGenerator <- function(corpus_object) {
+  ## Modified
+  corp <- corpus_object
+  for(i in 1:6) {
+    print(paste0("Extracting", " ", i, "-grams from corpus"))
+    tokens <- function(x) unlist(lapply(ngrams(words(x), i), paste, collapse = " "), use.names = FALSE)
+    tdm <- TermDocumentMatrix(corp, control = list(tokenize = tokens))
+    
+    #  tdmr <- rollup(tdm, 2, na.rm = TRUE, FUN = sum)
+    #  tdmr.t <- data.table(token = tdmr$dimnames$Terms, count = tdm$v) 
+    # post-processing, creating dynamically word columns to simplify querying
+    #  tdmr.t[,  paste0("w", seq(i)) := tstrsplit(token, " ", fixed=TRUE)]
+    # remove source token to save memory
+    #  tdmr.t$token <- NULL
+    
+    
+    
+    tdmr <- sort(slam::row_sums(tdm, na.rm = T), decreasing=TRUE)
+    tdmr.t <- data.table(token = names(tdmr), count = unname(tdmr)) 
+    tdmr.t[,  paste0("w", seq(i)) := tstrsplit(token, " ", fixed=TRUE)]
+    # remove source token to save memory
+    tdmr.t$token <- NULL
+    
+    
+    print(paste0("Loaded in memory ", nrow(tdmr.t), " ", i, "-grams, taking: "))
+    print(object.size(tdmr.t), units='Mb')
+    
+    #frequency distribution
+    print(table(tdmr.t$count))
+    
+    # dynamically create variable names
+    assign(paste0("ngram",i), tdmr.t, envir = .GlobalEnv)
+  }
+  #rm(ds)
+  #rm(tdmr)
+  #rm(tdm)
+  #rm(tdmr.t)
+}
+
+ngramGenerator(corpus_object = corp)
 
 
 # # regrouping by count
@@ -261,48 +306,28 @@ length(unique(c(
 # prepare these in advance, since shiny app load-time should be smallest possible
 ngram_stats <- data.frame(ngram = '', length = 0, count_min = 0, count_median = 0, count_mean = 0, count_max = 0, most_frequent_ngram='', mem = '')
 
-for(i in 1:6) {
-  # on-the-fly ngram statistics
-  s <- summary( eval(parse(text = paste0('ngram',i,'$count'))) )
-  # extract the most frequent word
-  w <- eval(parse(text = paste0('ngram',i,'[1,seq(',i,')+1, with=F]')))
-  most_frequent_ngram <- paste(unlist(w), sep=" ", collapse = " ")
-  m <- paste(round(object.size(eval(parse(text = paste0('ngram',i))))/1024^2,1),'Mb')
-  ngram_stats <- rbind(ngram_stats, 
-                       data.frame(
-                         ngram = paste0('ngram',i), 
-                         length = nrow(eval(parse(text = paste0('ngram',i)))), 
-                         count_min = s[[1]], 
-                         count_median = s[[3]], 
-                         count_mean = round(s[[4]],1),
-                         count_max = s[[6]],
-                         most_frequent_ngram = most_frequent_ngram,
-                         mem = m
-                       )
-  )
+stat_generator <- function(startrange, endrange, stats_df){
+
+  for (i in startrange:endrange) {
+    s <- summary(eval(parse(text = paste0('ngram',i,'$count'))) )
+    # extract the most frequent word
+    w <- eval(parse(text = paste0('ngram',i,'[1,seq(',i,')+1, with=F]')))
+    most_frequent_ngram <- paste(unlist(w), sep=" ", collapse = " ")
+    m <- paste(round(object.size(eval(parse(text = paste0('ngram',i))))/1024^2,1),'Mb')
+    xdf <-  data.frame(ngram = paste0('ngram',i),
+                      length = nrow(eval(parse(text = paste0('ngram',i)))),
+                      count_min = s[[1]],
+                      count_median = s[[3]],
+                      count_mean = round(s[[4]],1),
+                      count_max = s[[6]],
+                      most_frequent_ngram = most_frequent_ngram,
+                      mem = m)
+    stats_df <- rbind(stats_df, xdf)
+    }
+  return(stats_df)
 }
 
-
-sfunction <- function(iter){
-  s <- summary(eval(parse(text = paste0('ngram',i,'$count'))) )
-  # extract the most frequent word
-  w <- eval(parse(text = paste0('ngram',i,'[1,seq(',i,')+1, with=F]')))
-  most_frequent_ngram <- paste(unlist(w), sep=" ", collapse = " ")
-  m <- paste(round(object.size(eval(parse(text = paste0('ngram',i))))/1024^2,1),'Mb')
-  xdf <-  data.frame(ngram = paste0('ngram',i),
-                     length = nrow(eval(parse(text = paste0('ngram',i)))),
-                     count_min = s[[1]],
-                     count_median = s[[3]],
-                     count_mean = round(s[[4]],1),
-                     count_max = s[[6]],
-                     most_frequent_ngram = most_frequent_ngram,
-                     mem = m
-  )
-  ngram_stats <- rbind(ngram_stats, xdf)
-  return(ngram_stats)
-}
-
-
+ngram_stats <- stat_generator()(1,6,ngram_stats)
 
 
 rm(s); rm(w);rm(m);rm(most_frequent_ngram);rm(i);
