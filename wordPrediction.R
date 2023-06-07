@@ -300,43 +300,6 @@ pred_words <- function(sentence, n = 5){
 }
 
 
-
-
-
-
-zx <<- zipdownloader("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip","Coursera-SwiftKey.zip", list = T)
-zip_test <<- ziphandler(zx)
-filedatareader(zip_test)
-filelist <<- c("en_US.blogs.txt", "en_US.twitter.txt", "en_US.news.txt")
-gen_stats(filelist, 0.2)
-corp <<- genCorpus(ds)
-ngramGenerator(corpus_object = corp)
-# memory size of our initial corpus
-print(object.size(corp), units="Mb")
-
-# environment size (all n-grams including corpus)
-print(object.size(x=sapply(ls(), get)), units="Mb")
-
-ngram_stats <<- data.frame(ngram = '', length = 0, count_min = 0, count_median = 0, count_mean = 0, count_max = 0, most_frequent_ngram='', mem = '')
-ngram_stats <<- stat_generator(1,6,ngram_stats)
-ngram_stats <<- ngram_stats[-1,]
-# save data for the Shiny app
-save.image("corpus_data.Rdata")
-
-pred_words('i want to go')
-pred_words('each')
-pred_words('thanks for all the')
-pred_words('according to')
-pred_words('i have decided')
-pred_words('at the top')
-pred_words('it is by design')
-pred_words('instead of saying this')
-pred_words('can you focus on the')
-
-
-
-
-
 run_tasks <- function() {
   if (!file.exists("corpus_data.Rdata")) {
     zx <<- zipdownloader("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip","Coursera-SwiftKey.zip", list = T)
