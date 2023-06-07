@@ -32,6 +32,29 @@ zipdownloader <- function(source_url,zip_file, list = NULL){
   }
 }
 
+zipdownloader <- function(source_url,zip_file, list = NULL){
+  #if (!file.exists(zip_file)) {
+  # dir.create('data')
+  #}
+  tempFile <- tempfile()
+  
+  if (!file.exists(zip_file)) {
+    print("The file doesnt exist...")
+    download.file(source_url, tempFile)
+  } else if (file.exists(zip_file)) {
+    print("the file DOES exist...")
+    tempFile <- zip_file
+  }
+  #unzip(tempFile, exdir = "data")
+  if (is.null(list)==TRUE){
+    ##TODO: Remove the redundat handler since list argument is used regardless)
+    unzip(tempFile, list=T)
+  } else if (is.null(list)==FALSE) {
+    zx <- unzip(tempFile,list=T)
+    return(zx)
+  }
+  unlink(tempFile)
+}
 zx <- zipdownloader("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip","Coursera-SwiftKey.zip",list=T)
 
 ziphandler <- function(x){

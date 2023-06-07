@@ -1,11 +1,18 @@
 library(shiny)
 
+if(!exists("foo", mode="function")) source("./wordPrediction.R")
+
+
 # Define UI for app that draws a histogram ----
 ui <- fluidPage(
   
   # App title ----
   titlePanel("Hello Shiny!"),
-  
+
+  textAreaInput("sentence", " Input the string to predict"),
+  numericInput("freq_dist", "Number of bins", 5),
+  verbatimTextOutput("pred_results"),
+
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
     
@@ -53,9 +60,12 @@ server <- function(input, output) {
          main = "Histogram of waiting times")
     
   })
-  
+  output$pred_results <- renderPrint({
+    #pred_words(input$sentence, n = input$pred_count)
+    pred_words(input$sentence, input$freq_dist)
+  })
 }
 
+app <- shinyApp(ui = ui, server = server)
 
-shinyApp(ui = ui, server = server)
-
+runApp(app)

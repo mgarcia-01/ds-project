@@ -323,16 +323,18 @@ run_tasks <- function() {
   } else if (file.exists("corpus_data.Rdata")) {
      load("corpus_data.Rdata", envir = .GlobalEnv)
   }
+  print("Prediction Objects Loaded.")
   
-  pred_words('i want to go')
-  pred_words('each')
-  pred_words('thanks for all the')
-  pred_words('according to')
-  pred_words('i have decided')
-  pred_words('at the top')
-  pred_words('it is by design')
-  pred_words('instead of saying this')
-  pred_words('can you focus on the')
+  #pred_words('i want to go')
+  #pred_words('each')
+  #pred_words('thanks for all the')
+  #pred_words('according to')
+  #pred_words('i have decided')
+  #pred_words('at the top')
+  #pred_words('it is by design')
+  #pred_words('instead of saying this')
+  #pred_words('can you focus on the')
 }
+
 
 run_tasks()
