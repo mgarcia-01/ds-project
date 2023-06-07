@@ -13,137 +13,49 @@ if (!require("slam"))         { install.packages("slam") }
 if (!require("data.table"))   { install.packages("data.table") }
 
 
-
-zipdownloader <- function(source_url,zip_file, list = NULL){
-  #if (!file.exists(zip_file)) {
-  # dir.create('data')
-  #}
-  if (file.exists(zip_file)) {
-    tempFile <- tempfile()
-    download.file(source_url, tempFile)
-    #unzip(tempFile, exdir = "data")
-    if (is.null(list)==TRUE){
-      unzip(tempFile)
-    } else if (is.null(list)==FALSE) {
-      zx <- unzip(tempFile,list=T)
-      return(zx)
-    }
-    unlink(tempFile)
-  }
+# download file, if not present already
+if( ! file.exists("Coursera-SwiftKey.zip") ){
+  src_zip_file <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+  download.file(src_zip_file, destfile = "Coursera-SwiftKey.zip")
+  unzip("Coursera-SwiftKey.zip")
 }
 
-zipdownloader <- function(source_url,zip_file, list = NULL){
-  #if (!file.exists(zip_file)) {
-  # dir.create('data')
-  #}
-  tempFile <- tempfile()
+# look at the source files
+zip_files <- unzip("Coursera-SwiftKey.zip", list = T)
+zip_files$Date <- NULL
+zip_files$Language <- substr(zip_files$Name, 7, 8)
+zip_files$Length_in_Mb <- zip_files$Length/(1024^2)
+zip_files <- zip_files[zip_files$Length>0,]
+ggplot(zip_files, aes(x = Name, y = Length_in_Mb, fill = Language)) + 
+  geom_bar(stat="identity") + 
+  coord_flip() +
+  theme_light() + 
+  xlab("") + ylab("File size in Mb")
+
+
+# only load twitter
+zip_files <- zip_files[ grep("en_US", zip_files$Name),  ]
+
+# this section reads all the files in memory 
+# using dynamical variable names
+# only run this part if you have enough RAM
+for (file in zip_files$Name) {
+  con <- file(file, "r")
+  file_content <- readLines(con, encoding = "UTF-8")
+  print(  paste("File:", file, "has in-memory size of:") )
+  print(object.size(file_content), units="Mb")
+  close(con)
   
-  if (!file.exists(zip_file)) {
-    print("The file doesnt exist...")
-    download.file(source_url, tempFile)
-  } else if (file.exists(zip_file)) {
-    print("the file DOES exist...")
-    tempFile <- zip_file
-  }
-  #unzip(tempFile, exdir = "data")
-  if (is.null(list)==TRUE){
-    ##TODO: Remove the redundat handler since list argument is used regardless)
-    unzip(tempFile, list=T)
-  } else if (is.null(list)==FALSE) {
-    zx <- unzip(tempFile,list=T)
-    return(zx)
-  }
-  unlink(tempFile)
+  # dynamically create variable names
+  assign(basename(file), file_content)
+  file_content <- NULL
 }
-zx <- zipdownloader("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip","Coursera-SwiftKey.zip",list=T)
-
-ziphandler <- function(x){
-  # look at the source files
-  #zip_files <- unzip("Coursera-SwiftKey.zip", list = T)
-  zip_files <- x
-  zip_files$Date <- NULL
-  zip_files$Language <- substr(zip_files$Name, 7, 8)
-  zip_files$Length_in_Mb <- zip_files$Length/(1024^2)
-  zip_files <- zip_files[zip_files$Length>0,]
-  ggplot(zip_files, aes(x = Name, y = Length_in_Mb, fill = Language)) + 
-    geom_bar(stat="identity") + 
-    coord_flip() +
-    theme_light() + 
-    xlab("") + ylab("File size in Mb")
-  
-  
-  # only load twitter
-  zip_files <- zip_files[ grep("en_US", zip_files$Name),  ]
-  return(zip_files)
-  
-}
-
-zip_test <- ziphandler(zx)
-
-filedatareader <- function(file_df){
-  # this section reads all the files in memory 
-  # using dynamical variable names
-  # only run this part if you have enough RAM
-  for (file in file_df$Name) {
-    con <- file(file, "r")
-    file_content <- readLines(con, encoding = "UTF-8")
-    print(  paste("File:", file, "has in-memory size of:") )
-    print(object.size(file_content), units="Mb")
-    close(con)
-    
-    # dynamically create variable names
-    assign(basename(file), file_content, envir = .GlobalEnv)
-    file_content <- NULL
-  }
-}
-
-filedatareader(zip_test)
-
-
-filelist <- c("en_US.blogs.txt", "en_US.twitter.txt", "en_US.news.txt")
-gen_stats <- function(txtlist, multiplier) {
-  #   899,288 docs blogs
-  # 2,360,148 docs (largest collection in terms of documents) tweets
-  #    77,259 docs news
-  set.seed( 1984 ); ds.blogs  <- sample(en_US.blogs.txt,   0.2 * length(en_US.blogs.txt) ) # around 90k entries
-  set.seed( 1984 ); ds.tweets <- sample(en_US.twitter.txt, 0.2 * length(en_US.twitter.txt))
-  set.seed( 1984 ); ds.news   <- sample(en_US.news.txt,    0.2 * length(en_US.news.txt))
-  
-  # blending texts together
-  ds <- c(ds.blogs, ds.tweets, ds.news)
-  
-  hist( stri_count_words(ds), breaks=30, col=rainbow(50), main = paste("Number of words distribution for", prettyNum(length(ds), scientific=FALSE, big.mark=","), "documents" ))
-  
-  # 246564
-  length(ds)
-  
-  # word summaries
-  summary(stri_count_words(ds))
-  
-  # summary number of characters
-  summary( sapply(ds, nchar) )
-  
-  
-  # calculate how much memory each object requires, and list the largest 10
-  tail( sort( sapply(ls(), function(x) object.size(get(x)) ) ) , 10)
-  rm(en_US.blogs.txt)
-  rm(en_US.news.txt)
-  rm(en_US.twitter.txt)
-  rm(ds.blogs)
-  rm(ds.news)
-  rm(ds.tweets)
-  gc()
-}
-
-gen_stats(filelist, 0.2)
 
 
 
 #   899,288 docs blogs
 # 2,360,148 docs (largest collection in terms of documents) tweets
 #    77,259 docs news
-set.seed(1984); assign(paste0("ds.","en_US.blogs.txt"), sample(en_US.blogs.txt,   0.2 * length(en_US.blogs.txt)))
-
 set.seed( 1984 ); ds.blogs  <- sample(en_US.blogs.txt,   0.2 * length(en_US.blogs.txt) ) # around 90k entries
 set.seed( 1984 ); ds.tweets <- sample(en_US.twitter.txt, 0.2 * length(en_US.twitter.txt))
 set.seed( 1984 ); ds.news   <- sample(en_US.news.txt,    0.2 * length(en_US.news.txt))
@@ -172,11 +84,6 @@ rm(ds.blogs)
 rm(ds.news)
 rm(ds.tweets)
 gc()
-
-
-
-
-
 
 
 # text mining on sampled data
@@ -217,15 +124,15 @@ for(i in 1:6) {
   print(paste0("Extracting", " ", i, "-grams from corpus"))
   tokens <- function(x) unlist(lapply(ngrams(words(x), i), paste, collapse = " "), use.names = FALSE)
   tdm <- TermDocumentMatrix(corp, control = list(tokenize = tokens))
-  
-  #  tdmr <- rollup(tdm, 2, na.rm = TRUE, FUN = sum)
-  #  tdmr.t <- data.table(token = tdmr$dimnames$Terms, count = tdm$v) 
+
+#  tdmr <- rollup(tdm, 2, na.rm = TRUE, FUN = sum)
+#  tdmr.t <- data.table(token = tdmr$dimnames$Terms, count = tdm$v) 
   # post-processing, creating dynamically word columns to simplify querying
-  #  tdmr.t[,  paste0("w", seq(i)) := tstrsplit(token, " ", fixed=TRUE)]
+#  tdmr.t[,  paste0("w", seq(i)) := tstrsplit(token, " ", fixed=TRUE)]
   # remove source token to save memory
-  #  tdmr.t$token <- NULL
-  
-  
+#  tdmr.t$token <- NULL
+
+
   
   tdmr <- sort(slam::row_sums(tdm, na.rm = T), decreasing=TRUE)
   tdmr.t <- data.table(token = names(tdmr), count = unname(tdmr)) 
@@ -233,11 +140,11 @@ for(i in 1:6) {
   # remove source token to save memory
   tdmr.t$token <- NULL
   
-  
+
   print(paste0("Loaded in memory ", nrow(tdmr.t), " ", i, "-grams, taking: "))
   print(object.size(tdmr.t), units='Mb')
-  
-  #frequency distribution
+
+    #frequency distribution
   print( table(tdmr.t$count) )
   
   # dynamically create variable names
@@ -261,9 +168,9 @@ rm(tdmr.t)
 # 
 
 #paranoid memory cleanup
-#rm(cn)
-#rm(corp)
-#rm(i)
+rm(cn)
+rm(corp)
+rm(i)
 
 # memory size of our initial corpus
 print(object.size(corp), units="Mb")
@@ -309,7 +216,6 @@ length(unique(c(
 
 # prepare these in advance, since shiny app load-time should be smallest possible
 ngram_stats <- data.frame(ngram = '', length = 0, count_min = 0, count_median = 0, count_mean = 0, count_max = 0, most_frequent_ngram='', mem = '')
-
 for(i in 1:6) {
   # on-the-fly ngram statistics
   s <- summary( eval(parse(text = paste0('ngram',i,'$count'))) )
@@ -318,42 +224,18 @@ for(i in 1:6) {
   most_frequent_ngram <- paste(unlist(w), sep=" ", collapse = " ")
   m <- paste(round(object.size(eval(parse(text = paste0('ngram',i))))/1024^2,1),'Mb')
   ngram_stats <- rbind(ngram_stats, 
-                       data.frame(
-                         ngram = paste0('ngram',i), 
-                         length = nrow(eval(parse(text = paste0('ngram',i)))), 
-                         count_min = s[[1]], 
-                         count_median = s[[3]], 
-                         count_mean = round(s[[4]],1),
-                         count_max = s[[6]],
-                         most_frequent_ngram = most_frequent_ngram,
-                         mem = m
-                       )
-  )
+                      data.frame(
+                        ngram = paste0('ngram',i), 
+                        length = nrow(eval(parse(text = paste0('ngram',i)))), 
+                        count_min = s[1], 
+                        count_median = s[3], 
+                        count_mean = round(s[4],1),
+                        count_max = s[6],
+                        most_frequent_ngram = most_frequent_ngram,
+                        mem = m
+                        )
+                 )
 }
-
-
-sfunction <- function(iter){
-  s <- summary(eval(parse(text = paste0('ngram',i,'$count'))) )
-  # extract the most frequent word
-  w <- eval(parse(text = paste0('ngram',i,'[1,seq(',i,')+1, with=F]')))
-  most_frequent_ngram <- paste(unlist(w), sep=" ", collapse = " ")
-  m <- paste(round(object.size(eval(parse(text = paste0('ngram',i))))/1024^2,1),'Mb')
-  xdf <-  data.frame(ngram = paste0('ngram',i),
-                     length = nrow(eval(parse(text = paste0('ngram',i)))),
-                     count_min = s[[1]],
-                     count_median = s[[3]],
-                     count_mean = round(s[[4]],1),
-                     count_max = s[[6]],
-                     most_frequent_ngram = most_frequent_ngram,
-                     mem = m
-  )
-  ngram_stats <- rbind(ngram_stats, xdf)
-  return(ngram_stats)
-}
-
-
-
-
 rm(s); rm(w);rm(m);rm(most_frequent_ngram);rm(i);
 ngram_stats <- ngram_stats[-1,]
 
@@ -376,7 +258,7 @@ pred_words <- function(sentence, n = 10){
   words <- unlist(strsplit(sentence, split = " " ))
   
   # only focus on last 5 words
-  words <- tail(words, 5)
+  words <- tail(words, 10)
   
   word1 <- words[1];word2 <- words[2];word3 <- words[3];word4 <- words[4];word5 <- words[5];
   datasub <- data.table()
@@ -420,8 +302,6 @@ pred_words <- function(sentence, n = 10){
 }
 
 
-
-
 pred_words('i want to go')
 pred_words('each')
 pred_words('thanks for all the')
@@ -432,9 +312,6 @@ pred_words('it is by design')
 pred_words('instead of saying this')
 pred_words('can you focus on the')
 
-
-
-pred_words("Talking to your mom has the same effect as a hug and helps reduce your")
 
 # For each of the sentence fragments below use your natural language processing algorithm to predict the next word in the sentence.
 # 
