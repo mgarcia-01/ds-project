@@ -247,7 +247,7 @@ save.image("20th_corpus_freq.Rdata")
 # predict function
 # simple back-off algorithm working its way from large 6-grams to tri/bi/unigrams
 #
-pred_words <- function(sentence, n = 10){
+pred_words <- function(sentence, n = 20){
   
   # follow a similar preparation path as the large corpus
   sentence <- removeNumbers(sentence)
@@ -255,10 +255,10 @@ pred_words <- function(sentence, n = 10){
   sentence <- tolower(sentence)
   
   # split into words
-  words <- unlist(strsplit(sentence, split = " " ))
+  words <<- unlist(strsplit(sentence, split = " " ))
   
   # only focus on last 5 words
-  words <- tail(words, 10)
+  words <<- tail(words, 5)
   
   word1 <- words[1];word2 <- words[2];word3 <- words[3];word4 <- words[4];word5 <- words[5];
   datasub <- data.table()

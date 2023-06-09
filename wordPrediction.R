@@ -244,7 +244,7 @@ stat_generator <- function(startrange, endrange, stats_df){
   return(stats_df)
 }
 
-pred_words <- function(sentence, n = 5){
+pred_words <- function(sentence, n = 10, num_end_words = 5){
   # predict function
 # simple back-off algorithm working its way from large 6-grams to tri/bi/unigrams
   # follow a similar preparation path as the large corpus
@@ -256,7 +256,8 @@ pred_words <- function(sentence, n = 5){
   words <- unlist(strsplit(sentence, split = " " ))
   
   # only focus on last 5 words
-  words <- tail(words, 5)
+  #words <- tail(words, 10)
+  words <- tail(words, num_end_words)
   
   word1 <- words[1];word2 <- words[2];word3 <- words[3];word4 <- words[4];word5 <- words[5];
   datasub <- data.table()
@@ -294,6 +295,7 @@ pred_words <- function(sentence, n = 5){
   
   if(nrow(datasub) > 0){
     datasub$freq <- datasub$count / sum(datasub$count)
+    #as.data.frame(head(datasub[order(-freq)], min(n, nrow(datasub))))
     as.data.frame(head(datasub[order(-freq)], min(n, nrow(datasub))))
   }
   
@@ -325,16 +327,6 @@ run_tasks <- function() {
   }
   print("Prediction Objects Loaded.")
   
-  #pred_words('i want to go')
-  #pred_words('each')
-  #pred_words('thanks for all the')
-  #pred_words('according to')
-  #pred_words('i have decided')
-  #pred_words('at the top')
-  #pred_words('it is by design')
-  #pred_words('instead of saying this')
-  #pred_words('can you focus on the')
-}
-
+ 
 
 run_tasks()
