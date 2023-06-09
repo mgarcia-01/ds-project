@@ -118,6 +118,7 @@ gen_stats <- function(txtlist, multiplier) {
   #return(hist(stri_count_words(ds), breaks=30, col=rainbow(50), main = paste("Number of words distribution for", prettyNum(length(ds), scientific=FALSE, big.mark=","), "documents" )))
 }
 
+#Volatile Corpus generator
 genCorpus <- function(txtlist) {
   # text mining on sampled data
   cp <- VCorpus(VectorSource(txtlist))
@@ -326,7 +327,8 @@ run_tasks <- function() {
      load("corpus_data.Rdata", envir = .GlobalEnv)
   }
   print("Prediction Objects Loaded.")
-  
+}
  
 
 run_tasks()
+

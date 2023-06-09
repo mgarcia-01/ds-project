@@ -10,7 +10,8 @@ ui <- fluidPage(
   titlePanel("Hello Shiny!"),
 
   textAreaInput("sentence", " Input the string to predict"),
-  numericInput("freq_dist", "Number of bins", 5),
+  numericInput("freq_dist", "Number of bins", 10),
+  numericInput("countend_words", "Enter number of end words", 5),
   verbatimTextOutput("pred_results"),
 
   # Sidebar layout with input and output definitions ----
@@ -61,7 +62,7 @@ server <- function(input, output) {
   })
   output$pred_results <- renderPrint({
     #pred_words(input$sentence, n = input$pred_count)
-    pred_words(input$sentence, input$freq_dist)
+    pred_words(input$sentence, input$freq_dist, input$countend_words)
   })
 }
 
