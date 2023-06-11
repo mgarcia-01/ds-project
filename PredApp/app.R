@@ -13,6 +13,7 @@ ui <- fluidPage(
   numericInput("freq_dist", "Number of bins", 10),
   numericInput("countend_words", "Enter number of end words", 5),
   verbatimTextOutput("pred_results"),
+  
 
   # Sidebar layout with input and output definitions ----
   sidebarLayout(

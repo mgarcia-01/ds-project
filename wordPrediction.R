@@ -3,10 +3,10 @@ rm(list = ls())
 gc()
 
 # libs
-if (!require("ggplot2"))      { install.packages("ggplot2") }
-if (!require("tm"))           { install.packages("tm") }
 if (!require("stringi"))      { install.packages("stringi") }
 if (!require("wordcloud"))    { install.packages("wordcloud") }
+if (!require("ggplot2"))      { install.packages("ggplot2") }
+if (!require("tm"))           { install.packages("tm") }
 if (!require("RColorBrewer")) { install.packages("RColorBrewer") }
 if (!require("dplyr"))        { install.packages("dplyr") }
 if (!require("slam"))         { install.packages("slam") }
@@ -245,6 +245,8 @@ stat_generator <- function(startrange, endrange, stats_df){
   return(stats_df)
 }
 
+
+
 pred_words <- function(sentence, n = 10, num_end_words = 5){
   # predict function
 # simple back-off algorithm working its way from large 6-grams to tri/bi/unigrams
@@ -331,4 +333,3 @@ run_tasks <- function() {
  
 
 run_tasks()
-
