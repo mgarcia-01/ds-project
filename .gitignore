@@ -44,3 +44,4 @@ data
 .ds_store
 *.Rdata
 settings.json
+*.html

@@ -14,10 +14,10 @@ if (!require("data.table"))   { install.packages("data.table") }
 
 
 
+#TODO: Need to fix the temp file existence to work when it is not a tmp
+
 zipdownloader <- function(source_url,zip_file, list = NULL){
-    #if (!file.exists(zip_file)) {
-     # dir.create('data')
-      #}
+    
     tempFile <- tempfile()
 
     if (!file.exists(zip_file)) {
@@ -27,9 +27,7 @@ zipdownloader <- function(source_url,zip_file, list = NULL){
       print("the file DOES exist...")
       tempFile <- zip_file
     }
-    #unzip(tempFile, exdir = "data")
     if (is.null(list)==TRUE){
-##TODO: Remove the redundat handler since list argument is used regardless)
       unzip(tempFile, list=T)
       } else if (is.null(list)==FALSE) {
           zx <- unzip(tempFile,list=T)
@@ -40,8 +38,7 @@ zipdownloader <- function(source_url,zip_file, list = NULL){
 
 
 ziphandler <- function(x){
-  # look at the source files
-  #zip_files <- unzip("Coursera-SwiftKey.zip", list = T)
+  
   zip_files <- x
   zip_files$Date <- NULL
   zip_files$Language <- substr(zip_files$Name, 7, 8)
@@ -59,9 +56,7 @@ ziphandler <- function(x){
 
 
 filedatareader <- function(file_df){
-  # this section reads all the files in memory 
-  # using dynamical variable names
-  # only run this part if you have enough RAM
+  
   for (file in file_df$Name) {
     con <- file(file, "r")
     file_content <- readLines(con, encoding = "UTF-8")
@@ -82,24 +77,18 @@ cleanObjects <- function(objlist) {
   }
 }
 
-# inspect outcome
-#inspect( corp[1:2] ) 
 
 gen_stats <- function(txtlist, multiplier) {
-  #   899,288 docs blogs
-  # 2,360,148 docs (largest collection in terms of documents) tweets
-  #    77,259 docs news
+  
   ds <<- c()
   for (i in txtlist){
     var = eval(parse(text = i))
     set.seed(1984); assign(paste0("ds.",i), sample(var,   0.2 * length(var)), envir = .GlobalEnv)
-    # The appended data cannot be var but the new generated variable 
     ds <<- c(ds,assign(paste0("ds.",i), sample(var,   0.2 * length(var)), envir = .GlobalEnv))
   }
   
   hist(stri_count_words(ds), breaks=30, col=rainbow(50), main = paste("Number of words distribution for", prettyNum(length(ds), scientific=FALSE, big.mark=","), "documents" ))
   
-  # 246564
   length(ds)
   
   # word summaries
@@ -114,8 +103,6 @@ gen_stats <- function(txtlist, multiplier) {
   
   cleanObjects(txtlist)
 
-  gc()
-  #return(hist(stri_count_words(ds), breaks=30, col=rainbow(50), main = paste("Number of words distribution for", prettyNum(length(ds), scientific=FALSE, big.mark=","), "documents" )))
 }
 
 #Volatile Corpus generator
@@ -140,17 +127,10 @@ genCorpus <- function(txtlist) {
   # Remove numbers
   cp = tm_map(cp, removeNumbers)
 
-  # remove stopwords
-  #length( stopwords("en") )
-  #cp <- tm_map(cp, removeWords, stopwords("en"))
-
   # assign TEXT flag
   cp <- tm_map(cp, PlainTextDocument)
   
   return(cp)
-  
-  # inspect outcome
-  #inspect( cp[1:2] ) # nolint: commented_code_linter.
 }
 
 ngramGenerator <- function(corpus_object) {
@@ -160,16 +140,6 @@ ngramGenerator <- function(corpus_object) {
     print(paste0("Extracting", " ", i, "-grams from corpus"))
     tokens <- function(x) unlist(lapply(ngrams(words(x), i), paste, collapse = " "), use.names = FALSE)
     tdm <- TermDocumentMatrix(corp, control = list(tokenize = tokens))
-    
-    #  tdmr <- rollup(tdm, 2, na.rm = TRUE, FUN = sum)
-    #  tdmr.t <- data.table(token = tdmr$dimnames$Terms, count = tdm$v) 
-    # post-processing, creating dynamically word columns to simplify querying
-    #  tdmr.t[,  paste0("w", seq(i)) := tstrsplit(token, " ", fixed=TRUE)]
-    # remove source token to save memory
-    #  tdmr.t$token <- NULL
-    
-    
-    
     tdmr <- sort(slam::row_sums(tdm, na.rm = T), decreasing=TRUE)
     tdmr.t <- data.table(token = names(tdmr), count = unname(tdmr)) 
     tdmr.t[,  paste0("w", seq(i)) := tstrsplit(token, " ", fixed=TRUE)]
@@ -186,49 +156,14 @@ ngramGenerator <- function(corpus_object) {
     # dynamically create variable names
     assign(paste0("ngram",i), tdmr.t, envir = .GlobalEnv)
   }
-  #rm(ds)
-  #rm(tdmr)
-  #rm(tdm)
-  #rm(tdmr.t)
 }
 
-
-relative_freq <- function() {
-  # calculate relative frequency
-  ngram1[,freq:=count/sum(count)]
-  ngram2[,freq:=count/sum(count)]
-  ngram3[,freq:=count/sum(count)]
-  ngram4[,freq:=count/sum(count)]
-  ngram5[,freq:=count/sum(count)]
-  ngram6[,freq:=count/sum(count)]
-
-  # skip sparse entities, but leave the real frequency
-  ngram1 <- subset(ngram1, count>1)
-  ngram2 <- subset(ngram2, count>1)
-  ngram3 <- subset(ngram3, count>1)
-  ngram4 <- subset(ngram4, count>1)
-  ngram5 <- subset(ngram5, count>1)
-  ngram6 <- subset(ngram6, count>1)
-
-
-  # how many unique words loaded (we took just splits of the full datasets)
-  length(unique(c(
-    unlist(ngram2[,2:3, with = FALSE]), 
-    unlist(ngram3[,2:4, with = FALSE]), 
-    unlist(ngram4[,2:5, with = FALSE]), 
-    unlist(ngram5[,2:6, with = FALSE]), 
-    unlist(ngram6[,2:7, with = FALSE])
-  ))) 
-}
-
-# prepare these in advance, since shiny app load-time should be smallest possible
 
 
 stat_generator <- function(startrange, endrange, stats_df){
 
   for (i in startrange:endrange) {
     s <- summary(eval(parse(text = paste0('ngram',i,'$count'))) )
-    # extract the most frequent word
     w <- eval(parse(text = paste0('ngram',i,'[1,seq(',i,')+1, with=F]')))
     most_frequent_ngram <- paste(unlist(w), sep=" ", collapse = " ")
     m <- paste(round(object.size(eval(parse(text = paste0('ngram',i))))/1024^2,1),'Mb')
@@ -250,16 +185,14 @@ stat_generator <- function(startrange, endrange, stats_df){
 pred_words <- function(sentence, n = 10, num_end_words = 5){
   # predict function
 # simple back-off algorithm working its way from large 6-grams to tri/bi/unigrams
-  # follow a similar preparation path as the large corpus
+# follow a similar preparation path as the large corpus
   sentence <- removeNumbers(sentence)
   sentence <- removePunctuation(sentence)
   sentence <- tolower(sentence)
   
-  # split into words
+  # split sentences into words
   words <- unlist(strsplit(sentence, split = " " ))
   
-  # only focus on last 5 words
-  #words <- tail(words, 10)
   words <- tail(words, num_end_words)
   
   word1 <- words[1];word2 <- words[2];word3 <- words[3];word4 <- words[4];word5 <- words[5];
@@ -298,7 +231,6 @@ pred_words <- function(sentence, n = 10, num_end_words = 5){
   
   if(nrow(datasub) > 0){
     datasub$freq <- datasub$count / sum(datasub$count)
-    #as.data.frame(head(datasub[order(-freq)], min(n, nrow(datasub))))
     as.data.frame(head(datasub[order(-freq)], min(n, nrow(datasub))))
   }
   
@@ -315,14 +247,14 @@ run_tasks <- function() {
     corp <<- genCorpus(ds)
     ngramGenerator(corpus_object = corp)
     # memory size of our initial corpus
-    print(object.size(corp), units="Mb")
+    #print(object.size(corp), units="Mb")
 
     # environment size (all n-grams including corpus)
-    print(object.size(x=sapply(ls(), get)), units="Mb")
+    #print(object.size(x=sapply(ls(), get)), units="Mb")
     
     ngram_stats <<- data.frame(ngram = '', length = 0, count_min = 0, count_median = 0, count_mean = 0, count_max = 0, most_frequent_ngram='', mem = '')
     ngram_stats <<- stat_generator(1,6, ngram_stats)
-    #ngram_stats <<- ngram_stats[-1,]
+    ngram_stats <<- ngram_stats[-1,]
     # save data for the Shiny app
     save.image("corpus_data.Rdata")
   } else if (file.exists("corpus_data.Rdata")) {
@@ -333,6 +265,3 @@ run_tasks <- function() {
 
 
 run_tasks()
-
-
-wordcloud(ngram_stats$most_frequent_ngram,ngram_stats$count_max,max.words=100,random.order = F, colors=brewer.pal(8, "Dark2"))

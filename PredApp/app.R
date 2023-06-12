@@ -23,23 +23,12 @@ ui <- fluidPage(
     sidebarPanel(
       plotOutput(outputId = "ngramPlot")
       
-      
-      # Input: Slider for the number of bins ----
-     # sliderInput(inputId = "bins",
-      #            label = "Number of bins:",
-       #           min = 1,
-        #          max = 50,
-                  #value = 30)
-      
     ),
     
     # Main panel for displaying outputs ----
     mainPanel(
-      
-      # Output: Histogram ----
-      
+    
       imageOutput("cloudImage")
-      #plotOutput(outputId = "distPlot") 
       
     )
   )
@@ -49,20 +38,6 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram ----
 server <- function(input, output) {
   
-  # Histogram of the Old Faithful Geyser Data ----
-  # with requested number of bins
-  # This expression that generates a histogram is wrapped in a call
-  # to renderPlot to indicate that:
-  # 
-  # 1. It is "reactive" and therefore should be automatically
-  #    re-executed when inputs (input$bins) change
-  # 2. Its output type is a plot
-  #output$distPlot <- renderPlot({  
-   # x    <- faithful$waiting
-    #bins <- seq(min(x), max(x), length.out = input$bins + 1)
-    #hist(x, breaks = bins, col = "#007bc2", border = "white",
-     #    xlab = "Waiting time to next eruption (in mins)",
-      #   main = "Histogram of waiting times")})
   output$ngramPlot <- renderPlot({
     ggplot(head(ngram_stats,15), aes(reorder(most_frequent_ngram,count_max), count_max)) +   
         geom_bar(stat="identity") + coord_flip() + 
@@ -71,7 +46,6 @@ server <- function(input, output) {
   })
 
   output$pred_results <- renderPrint({
-    #pred_words(input$sentence, n = input$pred_count)
     pred_words(input$sentence, input$freq_dist, input$countend_words)
   })
   output$stats <- renderPrint({
@@ -80,15 +54,12 @@ server <- function(input, output) {
   output$cloudImage <- renderImage({
     outfile <- tempfile(fileext = '.png')
     png(outfile, pointsize = 10, res = 200)
-    #wordcloud(ngram_stats$most_frequent_ngram,ngram_stats$count_max,max.words=100
-    #,random.order = F, colors=brewer.pal(8, "Dark2"))
     wordcloud(ngram_stats$most_frequent_ngram,ngram_stats$count_max,max.words=100,random.order = F,col=brewer.pal(8, "Dark2") , rot.per=0.3)
     dev.off()
     list(src = outfile,
         contentType = 'image/png',
         width = 700,
         height = 700
-       #alt = "This is alternate text")
     )
   }, deleteFile = TRUE
   )
