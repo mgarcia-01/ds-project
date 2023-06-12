@@ -321,8 +321,8 @@ run_tasks <- function() {
     print(object.size(x=sapply(ls(), get)), units="Mb")
     
     ngram_stats <<- data.frame(ngram = '', length = 0, count_min = 0, count_median = 0, count_mean = 0, count_max = 0, most_frequent_ngram='', mem = '')
-    ngram_stats <<- stat_generator(1,6,ngram_stats)
-    ngram_stats <<- ngram_stats[-1,]
+    ngram_stats <<- stat_generator(1,6, ngram_stats)
+    #ngram_stats <<- ngram_stats[-1,]
     # save data for the Shiny app
     save.image("corpus_data.Rdata")
   } else if (file.exists("corpus_data.Rdata")) {
@@ -330,6 +330,9 @@ run_tasks <- function() {
   }
   print("Prediction Objects Loaded.")
 }
- 
+
 
 run_tasks()
+
+
+wordcloud(ngram_stats$most_frequent_ngram,ngram_stats$count_max,max.words=100,random.order = F, colors=brewer.pal(8, "Dark2"))
